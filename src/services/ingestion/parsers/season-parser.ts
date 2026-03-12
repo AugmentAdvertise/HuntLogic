@@ -211,14 +211,24 @@ export class SeasonParser extends BaseParser {
     const startDate = get("start_date");
     if (!seasonName && !startDate) return null;
 
+    const year = this.parseInteger(get("year")) ?? config.year ?? new Date().getFullYear();
+
+    // Infer species from season name if no explicit species column
+    const speciesRaw = get("species");
+    const species = speciesRaw
+      ? speciesRaw
+      : seasonName
+        ? this.inferSpeciesFromName(seasonName)
+        : config.species_slug ?? "unknown";
+
     return {
-      year: this.parseInteger(get("year")) ?? config.year ?? new Date().getFullYear(),
+      year,
       unitCode: get("unit") || undefined,
-      species: get("species") ?? config.species_slug ?? "unknown",
+      species,
       seasonName: seasonName ? this.clean(seasonName) : undefined,
       weaponType: get("weapon_type") || undefined,
-      startDate: this.normalizeDate(startDate),
-      endDate: this.normalizeDate(get("end_date")),
+      startDate: this.normalizeDate(startDate, year),
+      endDate: this.normalizeDate(get("end_date"), year),
       tagType: get("tag_type") || undefined,
       quota: this.parseInteger(get("quota")),
       rawRow: Object.fromEntries(row.map((cell, i) => [i.toString(), cell])),
@@ -229,23 +239,58 @@ export class SeasonParser extends BaseParser {
   // Date normalization
   // -------------------------------------------------------------------------
 
-  private normalizeDate(dateStr: string | undefined | null): string | undefined {
-    if (!dateStr || dateStr.trim() === "" || dateStr === "-") return undefined;
+  private normalizeDate(dateStr: string | undefined | null, year?: number): string | undefined {
+    if (!dateStr || dateStr.trim() === "" || dateStr === "-" || dateStr === "N/A") return undefined;
 
     const cleaned = dateStr.trim();
 
     // Already in YYYY-MM-DD format
     if (/^\d{4}-\d{2}-\d{2}$/.test(cleaned)) return cleaned;
 
+    // If it's just "Mon DD" (e.g. "Jan 2", "Jun 1"), append the year
+    const shortDateMatch = cleaned.match(/^([A-Za-z]+)\s+(\d{1,2})$/);
+    if (shortDateMatch && year) {
+      const withYear = `${shortDateMatch[1]} ${shortDateMatch[2]}, ${year}`;
+      const parsed = new Date(withYear);
+      if (!isNaN(parsed.getTime())) {
+        return parsed.toISOString().split("T")[0];
+      }
+    }
+
     // Try to parse with Date
     const parsed = new Date(cleaned);
     if (!isNaN(parsed.getTime())) {
+      // If parsed year is far from expected, substitute
+      if (year && Math.abs(parsed.getFullYear() - year) > 5) {
+        parsed.setFullYear(year);
+      }
       return parsed.toISOString().split("T")[0];
     }
 
-    // Common formats: "Sep 1, 2025" or "9/1/2025" or "September 1"
-    // Return as-is if we can't parse (normalizer will handle it)
     return undefined;
+  }
+
+  /**
+   * Infer species slug from a season/license name.
+   * E.g., "Elk - Nonresident" → "elk", "Bighorn Sheep" → "bighorn-sheep"
+   */
+  private inferSpeciesFromName(name: string): string {
+    const lower = name.toLowerCase();
+    if (lower.includes("elk")) return "elk";
+    if (lower.includes("deer")) return "mule_deer";
+    if (lower.includes("antelope") || lower.includes("pronghorn")) return "pronghorn";
+    if (lower.includes("moose")) return "moose";
+    if (lower.includes("bighorn") || lower.includes("sheep")) return "bighorn_sheep";
+    if (lower.includes("mountain goat") || lower.includes("goat")) return "mountain_goat";
+    if (lower.includes("bison") || lower.includes("buffalo")) return "bison";
+    if (lower.includes("turkey")) return "turkey";
+    if (lower.includes("furbearer")) return "furbearer";
+    if (lower.includes("bear")) return "black_bear";
+    if (lower.includes("crane")) return "sandhill_crane";
+    if (lower.includes("pheasant")) return "pheasant";
+    if (lower.includes("lion") || lower.includes("cougar")) return "mountain_lion";
+    if (lower.includes("javelina")) return "javelina";
+    return "unknown";
   }
 
   // -------------------------------------------------------------------------

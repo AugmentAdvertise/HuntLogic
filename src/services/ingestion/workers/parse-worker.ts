@@ -35,6 +35,8 @@ async function processParseJob(job: Job<ParseJobData>): Promise<void> {
       state_code: metadata.stateCode,
       species_slug: metadata.speciesSlug,
       year: metadata.year,
+      column_mappings: metadata.columnMappings,
+      table_selector: metadata.tableSelector,
     };
 
     // Parse the raw content

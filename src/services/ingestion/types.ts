@@ -37,6 +37,8 @@ export interface EndpointConfig {
   headers?: Record<string, string>;
   pagination?: PaginationConfig;
   selectors?: Record<string, string>; // CSS selectors for web scraping
+  column_mappings?: Record<string, string | number>; // parser column overrides
+  table_selector?: string; // CSS selector for target table
 }
 
 export interface PaginationConfig {
@@ -221,6 +223,8 @@ export interface ParseJobData {
     speciesSlug?: string;
     year?: number;
     objectStorageKey?: string;
+    columnMappings?: Record<string, string | number>;
+    tableSelector?: string;
   };
 }
 

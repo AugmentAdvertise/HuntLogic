@@ -72,6 +72,8 @@ async function processFetchJob(job: Job<FetchJobData>): Promise<void> {
           ? parseInt(endpoint.params.year)
           : undefined,
         objectStorageKey: result.objectStorageKey,
+        columnMappings: endpoint.column_mappings,
+        tableSelector: endpoint.table_selector,
       },
     };
 
