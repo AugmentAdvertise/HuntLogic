@@ -9,37 +9,14 @@ import {
   real,
   jsonb,
   index,
-  customType,
 } from "drizzle-orm/pg-core";
 import { states, species } from "./hunting";
 
 // ========================
-// Custom pgvector type for embedding column
-// NOTE: Requires pgvector extension enabled in PostgreSQL.
-// Run: CREATE EXTENSION IF NOT EXISTS vector;
-// If Drizzle doesn't natively support vector in your version,
-// add a raw SQL migration: ALTER TABLE documents ADD COLUMN embedding vector(1536);
+// Embedding storage: real[] (PostgreSQL native float array)
+// Uses cosine similarity function for semantic search.
+// Can migrate to pgvector extension later for HNSW indexing at scale.
 // ========================
-
-const vector = customType<{
-  data: number[];
-  driverData: string;
-  config: { dimensions: number };
-}>({
-  dataType(config) {
-    return `vector(${config?.dimensions ?? 1536})`;
-  },
-  fromDriver(value: string): number[] {
-    // pgvector returns '[1,2,3]' format
-    return value
-      .slice(1, -1)
-      .split(",")
-      .map((v) => parseFloat(v));
-  },
-  toDriver(value: number[]): string {
-    return `[${value.join(",")}]`;
-  },
-});
 
 // ========================
 // DATA SOURCES (where hunting data comes from)
@@ -101,9 +78,8 @@ export const documents = pgTable(
     metadata: jsonb("metadata").notNull().default({}),
     contentHash: text("content_hash"), // SHA-256 for dedup
     freshnessScore: real("freshness_score").notNull().default(1.0),
-    // pgvector embedding for semantic search / RAG
-    // NOTE: Requires CREATE EXTENSION IF NOT EXISTS vector;
-    embedding: vector("embedding", { dimensions: 1536 }),
+    // Embedding for semantic search / RAG (1536-dim float array)
+    embedding: real("embedding").array(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

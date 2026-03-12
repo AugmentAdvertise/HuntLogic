@@ -19,21 +19,26 @@ const LOG_PREFIX = "[ingestion:embed]";
 const qualityScorer = new QualityScorer();
 
 // ---------------------------------------------------------------------------
-// Embedding generation placeholder
+// Embedding generation via OpenAI text-embedding-3-small
 // ---------------------------------------------------------------------------
 
-/**
- * Generate an embedding vector for the given text.
- *
- * TODO: Implement with actual embedding provider:
- *   - Voyage AI (preferred for RAG): voyage.embed(text, model='voyage-2')
- *   - OpenAI: openai.embeddings.create({ model: 'text-embedding-3-small', input: text })
- *   - Local model via Ollama or HuggingFace
- *
- * Returns a 1536-dimensional vector (matching pgvector column config).
- */
+import OpenAI from "openai";
+
+let openaiClient: OpenAI | null = null;
+
+function getOpenAI(): OpenAI | null {
+  if (openaiClient) return openaiClient;
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    console.warn(`${LOG_PREFIX} OPENAI_API_KEY not set — embeddings disabled`);
+    return null;
+  }
+  openaiClient = new OpenAI({ apiKey });
+  return openaiClient;
+}
+
 async function generateEmbedding(text: string): Promise<number[] | null> {
-  // Truncate text to ~8000 tokens (~32000 chars) for embedding model limits
+  // Truncate to ~8000 tokens (~32000 chars) for model limits
   const truncated = text.slice(0, 32_000);
 
   if (truncated.length < 10) {
@@ -41,29 +46,16 @@ async function generateEmbedding(text: string): Promise<number[] | null> {
     return null;
   }
 
-  // --- PLACEHOLDER: Return null until embedding provider is configured ---
-  // When ready, uncomment one of these implementations:
+  const openai = getOpenAI();
+  if (!openai) return null;
 
-  // === Voyage AI ===
-  // import Anthropic from "@anthropic-ai/sdk";
-  // const voyageClient = new VoyageAI({ apiKey: process.env.VOYAGE_API_KEY });
-  // const result = await voyageClient.embed({ texts: [truncated], model: "voyage-2" });
-  // return result.embeddings[0];
+  const result = await openai.embeddings.create({
+    model: "text-embedding-3-small",
+    input: truncated,
+    dimensions: 1536,
+  });
 
-  // === OpenAI ===
-  // import OpenAI from "openai";
-  // const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-  // const result = await openai.embeddings.create({
-  //   model: "text-embedding-3-small",
-  //   input: truncated,
-  //   dimensions: 1536,
-  // });
-  // return result.data[0].embedding;
-
-  console.log(
-    `${LOG_PREFIX} Embedding generation placeholder — configure VOYAGE_API_KEY or OPENAI_API_KEY`
-  );
-  return null;
+  return result.data[0].embedding;
 }
 
 // ---------------------------------------------------------------------------
