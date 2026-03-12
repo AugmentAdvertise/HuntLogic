@@ -19,26 +19,25 @@ const LOG_PREFIX = "[ingestion:embed]";
 const qualityScorer = new QualityScorer();
 
 // ---------------------------------------------------------------------------
-// Embedding generation via OpenAI text-embedding-3-small
+// Embedding generation via Gemini gemini-embedding-001
 // ---------------------------------------------------------------------------
 
-import OpenAI from "openai";
+import { GoogleGenAI } from "@google/genai";
 
-let openaiClient: OpenAI | null = null;
+let geminiClient: GoogleGenAI | null = null;
 
-function getOpenAI(): OpenAI | null {
-  if (openaiClient) return openaiClient;
-  const apiKey = process.env.OPENAI_API_KEY;
+function getGemini(): GoogleGenAI | null {
+  if (geminiClient) return geminiClient;
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    console.warn(`${LOG_PREFIX} OPENAI_API_KEY not set — embeddings disabled`);
+    console.warn(`${LOG_PREFIX} GEMINI_API_KEY not set — embeddings disabled`);
     return null;
   }
-  openaiClient = new OpenAI({ apiKey });
-  return openaiClient;
+  geminiClient = new GoogleGenAI({ apiKey });
+  return geminiClient;
 }
 
 async function generateEmbedding(text: string): Promise<number[] | null> {
-  // Truncate to ~8000 tokens (~32000 chars) for model limits
   const truncated = text.slice(0, 32_000);
 
   if (truncated.length < 10) {
@@ -46,16 +45,16 @@ async function generateEmbedding(text: string): Promise<number[] | null> {
     return null;
   }
 
-  const openai = getOpenAI();
-  if (!openai) return null;
+  const ai = getGemini();
+  if (!ai) return null;
 
-  const result = await openai.embeddings.create({
-    model: "text-embedding-3-small",
-    input: truncated,
-    dimensions: 1536,
+  const result = await ai.models.embedContent({
+    model: "gemini-embedding-001",
+    contents: truncated,
+    config: { outputDimensionality: 768 },
   });
 
-  return result.data[0].embedding;
+  return result.embeddings?.[0]?.values ?? null;
 }
 
 // ---------------------------------------------------------------------------

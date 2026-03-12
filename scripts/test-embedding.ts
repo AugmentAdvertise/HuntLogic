@@ -1,23 +1,23 @@
 /**
- * Test embedding generation and cosine similarity search.
- * Usage: OPENAI_API_KEY=sk-... npx tsx scripts/test-embedding.ts
+ * Test Gemini embedding generation and cosine similarity search.
+ * Usage: GEMINI_API_KEY=... npx tsx scripts/test-embedding.ts
  */
 import postgres from "postgres";
-import OpenAI from "openai";
+import { GoogleGenAI } from "@google/genai";
 
 const sql = postgres(process.env.DATABASE_URL || "");
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 async function main() {
   // 1. Test embedding generation
   console.log("--- Generating test embedding ---");
   const testText = "Wyoming elk draw odds for nonresident hunters in 2025";
-  const result = await openai.embeddings.create({
-    model: "text-embedding-3-small",
-    input: testText,
-    dimensions: 1536,
+  const result = await ai.models.embedContent({
+    model: "gemini-embedding-001",
+    contents: testText,
+    config: { outputDimensionality: 768 },
   });
-  const embedding = result.data[0]!.embedding;
+  const embedding = result.embeddings![0]!.values!;
   console.log(`Generated ${embedding.length}-dim embedding for: "${testText}"`);
   console.log(`First 5 values: [${embedding.slice(0, 5).map(v => v.toFixed(6)).join(", ")}]`);
 
@@ -34,12 +34,12 @@ async function main() {
     const docText = [doc.title, doc.content].filter(Boolean).join("\n\n");
     const truncated = docText.slice(0, 32_000);
 
-    const docResult = await openai.embeddings.create({
-      model: "text-embedding-3-small",
-      input: truncated,
-      dimensions: 1536,
+    const docResult = await ai.models.embedContent({
+      model: "gemini-embedding-001",
+      contents: truncated,
+      config: { outputDimensionality: 768 },
     });
-    const docEmbedding = docResult.data[0]!.embedding;
+    const docEmbedding = docResult.embeddings![0]!.values!;
 
     await sql`
       UPDATE documents
@@ -78,7 +78,7 @@ async function main() {
     }
   }
 
-  // 4. Batch embed remaining documents
+  // 4. Check remaining
   const remaining = await sql`SELECT COUNT(*) as cnt FROM documents WHERE content IS NOT NULL AND embedding IS NULL`;
   console.log(`\nDocuments still needing embedding: ${remaining[0].cnt}`);
 

@@ -78,7 +78,7 @@ export const documents = pgTable(
     metadata: jsonb("metadata").notNull().default({}),
     contentHash: text("content_hash"), // SHA-256 for dedup
     freshnessScore: real("freshness_score").notNull().default(1.0),
-    // Embedding for semantic search / RAG (1536-dim float array)
+    // Embedding for semantic search / RAG (768-dim float array via Gemini)
     embedding: real("embedding").array(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()

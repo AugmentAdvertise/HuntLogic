@@ -1,21 +1,21 @@
 /**
  * RAG (Retrieval-Augmented Generation) Pipeline
  *
- * 1. Embedding generation via OpenAI text-embedding-3-small
+ * 1. Embedding generation via Gemini gemini-embedding-001
  * 2. Semantic search via cosine_similarity() on real[] columns
  * 3. Context assembly for Claude prompts
  */
 
-import OpenAI from "openai";
+import { GoogleGenAI } from "@google/genai";
 import { db } from "@/lib/db";
 import { sql } from "drizzle-orm";
 
-let openaiClient: OpenAI | null = null;
+let geminiClient: GoogleGenAI | null = null;
 
-function getOpenAI(): OpenAI {
-  if (openaiClient) return openaiClient;
-  openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-  return openaiClient;
+function getGemini(): GoogleGenAI {
+  if (geminiClient) return geminiClient;
+  geminiClient = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  return geminiClient;
 }
 
 export interface RetrievedDocument {
@@ -29,17 +29,17 @@ export interface RetrievedDocument {
 }
 
 /**
- * Generate a 1536-dim embedding vector for a given text.
+ * Generate a 768-dim embedding vector for a given text.
  */
 export async function generateEmbedding(text: string): Promise<number[]> {
   const truncated = text.slice(0, 32_000);
-  const openai = getOpenAI();
-  const result = await openai.embeddings.create({
-    model: "text-embedding-3-small",
-    input: truncated,
-    dimensions: 1536,
+  const ai = getGemini();
+  const result = await ai.models.embedContent({
+    model: "gemini-embedding-001",
+    contents: truncated,
+    config: { outputDimensionality: 768 },
   });
-  return result.data[0]!.embedding;
+  return result.embeddings![0]!.values!;
 }
 
 /**
@@ -54,15 +54,7 @@ export async function searchDocuments(
   const queryEmbedding = await generateEmbedding(query);
   const embeddingLiteral = `ARRAY[${queryEmbedding.join(",")}]::real[]`;
 
-  const results = await db.execute<{
-    id: string;
-    title: string | null;
-    content: string;
-    url: string | null;
-    doc_type: string | null;
-    year: number | null;
-    score: number;
-  }>(sql`
+  const results = await db.execute(sql`
     SELECT
       id,
       title,

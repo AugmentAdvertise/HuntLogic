@@ -1,12 +1,12 @@
 /**
  * Batch embed all documents that have content but no embedding.
- * Usage: OPENAI_API_KEY=sk-... npx tsx scripts/batch-embed.ts
+ * Usage: GEMINI_API_KEY=... npx tsx scripts/batch-embed.ts
  */
 import postgres from "postgres";
-import OpenAI from "openai";
+import { GoogleGenAI } from "@google/genai";
 
 const sql = postgres(process.env.DATABASE_URL || "");
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 const BATCH_SIZE = 20;
 const DELAY_MS = 1000; // 1s between batches to stay under rate limits
@@ -37,22 +37,21 @@ async function main() {
 
     if (docs.length === 0) break;
 
-    // Prepare batch input
+    // Gemini supports batch embedding via array of contents
     const inputs = docs.map((doc) => {
       const text = [doc.title, doc.content].filter(Boolean).join("\n\n");
       return text.slice(0, 32_000);
     });
 
     try {
-      const result = await openai.embeddings.create({
-        model: "text-embedding-3-small",
-        input: inputs,
-        dimensions: 1536,
+      const result = await ai.models.embedContent({
+        model: "gemini-embedding-001",
+        contents: inputs,
+        config: { outputDimensionality: 768 },
       });
 
-      // Update each document
       for (let i = 0; i < docs.length; i++) {
-        const embedding = result.data[i]!.embedding;
+        const embedding = result.embeddings![i]!.values!;
         await sql`
           UPDATE documents
           SET embedding = ${sql.array(embedding, "real")},
@@ -72,7 +71,6 @@ async function main() {
       }
     }
 
-    // Rate limit delay
     if (docs.length === BATCH_SIZE) {
       await new Promise((r) => setTimeout(r, DELAY_MS));
     }
