@@ -14,6 +14,16 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "**.huntlogic.com",
       },
+      {
+        // Google profile images
+        protocol: "https",
+        hostname: "lh3.googleusercontent.com",
+      },
+      {
+        // Apple profile images
+        protocol: "https",
+        hostname: "appleid.cdn-apple.com",
+      },
     ],
   },
 

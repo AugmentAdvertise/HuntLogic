@@ -67,3 +67,10 @@ export {
   aiPrompts,
   appConfig,
 } from "./config";
+
+// Auth domain
+export {
+  authAccounts,
+  verificationTokens,
+  authAccountsRelations,
+} from "./auth";

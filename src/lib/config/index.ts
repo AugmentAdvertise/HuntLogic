@@ -37,6 +37,13 @@ export const config = {
   auth: {
     secret: () => requireEnv("NEXTAUTH_SECRET"),
     url: optionalEnv("NEXTAUTH_URL", "http://localhost:3000"),
+    googleClientId: optionalEnv("GOOGLE_CLIENT_ID"),
+    googleClientSecret: optionalEnv("GOOGLE_CLIENT_SECRET"),
+    appleId: optionalEnv("APPLE_ID"),
+    appleTeamId: optionalEnv("APPLE_TEAM_ID"),
+    appleKeyId: optionalEnv("APPLE_KEY_ID"),
+    resendApiKey: optionalEnv("RESEND_API_KEY"),
+    emailFrom: optionalEnv("EMAIL_FROM", "HuntLogic <noreply@huntlogic.com>"),
   },
 
   ai: {
