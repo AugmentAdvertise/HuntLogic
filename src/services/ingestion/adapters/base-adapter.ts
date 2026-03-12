@@ -67,6 +67,17 @@ export abstract class BaseAdapter {
     const currentYear = new Date().getFullYear().toString();
     resolvedPath = resolvedPath.replace("{{current_year}}", currentYear);
 
+    // If the path is already an absolute URL, use it directly
+    if (resolvedPath.startsWith("http://") || resolvedPath.startsWith("https://")) {
+      const url = new URL(resolvedPath);
+      for (const [key, value] of Object.entries(params)) {
+        if (!path.includes(`{${key}}`)) {
+          url.searchParams.set(key, value);
+        }
+      }
+      return url.toString();
+    }
+
     // Build full URL
     const baseUrl = base.replace(/\/+$/, "");
     const cleanPath = resolvedPath.startsWith("/")

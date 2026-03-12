@@ -68,7 +68,7 @@ async function processFetchJob(job: Job<FetchJobData>): Promise<void> {
         fetchedAt: result.fetchedAt,
         stateCode: config.state_code,
         speciesSlug: config.species_slugs?.[0],
-        year: endpoint.params.year
+        year: endpoint.params?.year
           ? parseInt(endpoint.params.year)
           : undefined,
         objectStorageKey: result.objectStorageKey,
