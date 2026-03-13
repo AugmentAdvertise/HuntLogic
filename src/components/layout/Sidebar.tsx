@@ -19,6 +19,7 @@ import {
   Dice5,
   Users,
   MapPin,
+  ClipboardList,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -32,6 +33,7 @@ const mainNavItems = [
   { href: "/calendar", label: "Calendar", icon: CalendarDays },
   { href: "/groups", label: "Groups", icon: Users },
   { href: "/outfitters", label: "Outfitters", icon: MapPin },
+  { href: "/applications", label: "Applications", icon: ClipboardList },
   { href: "/chat", label: "Chat", icon: MessageCircle },
 ];
 
