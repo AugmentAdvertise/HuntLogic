@@ -102,6 +102,25 @@ export async function GET(request: NextRequest) {
             },
           });
 
+          // Also create a notification
+          const { createNotification } = await import("@/services/notifications");
+          await createNotification({
+            userId: user.id,
+            type: "deadline_reminder",
+            title: `${deadline.title} — ${window.days === 1 ? "Tomorrow" : `${window.days} days`}`,
+            body: deadline.description ?? `Don't miss the ${deadline.deadlineType} deadline${window.days === 1 ? " tomorrow" : ` in ${window.days} days`}.`,
+            actionUrl: "/calendar",
+            metadata: {
+              stateId: deadline.stateId,
+              speciesId: deadline.speciesId,
+              deadlineType: deadline.deadlineType,
+              deadlineDate: deadline.deadlineDate,
+              daysUntil: window.days,
+            },
+          }).catch((err: unknown) => {
+            console.warn("[cron/deadlines] Notification creation failed:", err);
+          });
+
           windowActionsCreated++;
         }
       }

@@ -54,6 +54,14 @@ export {
   userActionsRelations,
 } from "./actions";
 
+// Notifications domain
+export {
+  notifications,
+  notificationPreferences,
+  notificationsRelations,
+  notificationPreferencesRelations,
+} from "./notifications";
+
 // Data sources domain
 export {
   dataSources,

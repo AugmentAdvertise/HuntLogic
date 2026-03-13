@@ -15,7 +15,7 @@ export default function DashboardLayout({
       <Sidebar />
 
       {/* Mobile TopBar — visible below lg */}
-      <TopBar notificationCount={3} />
+      <TopBar />
 
       {/* Main content */}
       <main className="pb-20 lg:pb-0 lg:pl-64">

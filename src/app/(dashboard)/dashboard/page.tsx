@@ -5,6 +5,7 @@ import { AlertBanner } from "@/components/dashboard/AlertBanner";
 import { StrategySnapshot } from "@/components/dashboard/StrategySnapshot";
 import { DeadlineWidget } from "@/components/dashboard/DeadlineWidget";
 import { ActionFeed } from "@/components/dashboard/ActionFeed";
+import { WhatChanged } from "@/components/dashboard/WhatChanged";
 import { SkeletonList } from "@/components/ui/Skeleton";
 import { apiClient } from "@/lib/api/client";
 
@@ -181,6 +182,9 @@ export default function DashboardPage() {
 
       {/* Alerts */}
       <AlertBanner alerts={data.alerts} />
+
+      {/* What Changed */}
+      <WhatChanged />
 
       {/* Strategy + Deadlines grid */}
       <div className="grid gap-4 lg:grid-cols-2">
