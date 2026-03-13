@@ -15,6 +15,7 @@ import {
   Star,
   ChevronLeft,
   ChevronRight,
+  Target,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -30,6 +31,7 @@ const mainNavItems = [
 
 const bottomNavItems = [
   { href: "/profile", label: "Profile", icon: User },
+  { href: "/profile/harvest", label: "Harvest Log", icon: Target },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
