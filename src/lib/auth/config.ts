@@ -52,21 +52,29 @@ export const authConfig: NextAuthConfig = {
       allowDangerousEmailAccountLinking: true,
     }),
 
-    Apple({
-      clientId: process.env.APPLE_ID,
-      clientSecret: process.env.APPLE_PRIVATE_KEY
-        ? ({
-            teamId: process.env.APPLE_TEAM_ID,
-            privateKey: process.env.APPLE_PRIVATE_KEY,
-            keyId: process.env.APPLE_KEY_ID,
-          } as unknown as string)
-        : "",
-    }),
+    // Apple — only register if credentials are configured
+    ...(process.env.APPLE_ID && process.env.APPLE_PRIVATE_KEY
+      ? [
+          Apple({
+            clientId: process.env.APPLE_ID,
+            clientSecret: {
+              teamId: process.env.APPLE_TEAM_ID!,
+              privateKey: process.env.APPLE_PRIVATE_KEY,
+              keyId: process.env.APPLE_KEY_ID!,
+            } as unknown as string,
+          }),
+        ]
+      : []),
 
-    Resend({
-      apiKey: process.env.RESEND_API_KEY,
-      from: process.env.EMAIL_FROM ?? "HuntLogic <noreply@huntlogic.com>",
-    }),
+    // Resend email — only register if API key is configured
+    ...(process.env.RESEND_API_KEY
+      ? [
+          Resend({
+            apiKey: process.env.RESEND_API_KEY,
+            from: process.env.EMAIL_FROM ?? "HuntLogic <noreply@huntlogic.com>",
+          }),
+        ]
+      : []),
   ],
 
   // ---------------------------------------------------------------------------
