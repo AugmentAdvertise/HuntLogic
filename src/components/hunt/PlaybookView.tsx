@@ -101,7 +101,7 @@ export function PlaybookView({ playbook, onRefresh, isRefreshing }: PlaybookView
             key={tab}
             onClick={() => setActiveTab(tab)}
             className={cn(
-              "shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors min-h-[40px]",
+              "shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors min-h-[44px]",
               activeTab === tab
                 ? "bg-brand-forest text-brand-cream dark:bg-brand-sage"
                 : "bg-brand-sage/10 text-brand-sage hover:bg-brand-sage/20 dark:bg-brand-sage/20"
@@ -145,7 +145,7 @@ export function PlaybookView({ playbook, onRefresh, isRefreshing }: PlaybookView
             className="flex h-14 w-14 items-center justify-center rounded-full bg-brand-forest text-white shadow-lg transition-all hover:bg-brand-sage active:scale-95 disabled:opacity-50"
             aria-label="Refresh playbook"
           >
-            <RefreshCw className={cn("h-5 w-5", isRefreshing && "animate-spin")} />
+            <RefreshCw className={cn("h-5 w-5", isRefreshing && "motion-safe:animate-spin")} />
           </button>
         </div>
       )}

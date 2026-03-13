@@ -399,63 +399,18 @@ export interface PointValueAssessment {
 }
 
 // =============================================================================
-// Default Weights
+// Default Weights — values live in config.ts, re-exported here for convenience
 // =============================================================================
 
-export const DEFAULT_WEIGHTS: ScoringWeights = {
-  draw_odds: 0.20,
-  trophy_quality: 0.15,
-  success_rate: 0.15,
-  cost_efficiency: 0.15,
-  access: 0.10,
-  forecast: 0.10,
-  personal_fit: 0.10,
-  timeline_fit: 0.05,
-};
+import { SCORING_CONFIG } from "./config";
+
+export const DEFAULT_WEIGHTS: ScoringWeights = SCORING_CONFIG.defaultWeights;
 
 /**
  * Orientation-adjusted weight presets.
+ * The actual values are centralized in config.ts.
  */
 export const ORIENTATION_WEIGHTS: Record<string, Partial<ScoringWeights>> = {
-  trophy: {
-    trophy_quality: 0.25,
-    success_rate: 0.10,
-    draw_odds: 0.15,
-    forecast: 0.10,
-    cost_efficiency: 0.10,
-    access: 0.10,
-    personal_fit: 0.10,
-    timeline_fit: 0.10,
-  },
-  meat: {
-    success_rate: 0.25,
-    trophy_quality: 0.05,
-    draw_odds: 0.20,
-    cost_efficiency: 0.20,
-    access: 0.10,
-    forecast: 0.05,
-    personal_fit: 0.10,
-    timeline_fit: 0.05,
-  },
-  experience: {
-    access: 0.20,
-    personal_fit: 0.15,
-    trophy_quality: 0.10,
-    success_rate: 0.10,
-    draw_odds: 0.15,
-    cost_efficiency: 0.10,
-    forecast: 0.10,
-    timeline_fit: 0.10,
-  },
-  balanced: { ...DEFAULT_WEIGHTS } as ScoringWeights,
-  opportunity: {
-    draw_odds: 0.25,
-    success_rate: 0.20,
-    cost_efficiency: 0.15,
-    access: 0.10,
-    trophy_quality: 0.05,
-    forecast: 0.10,
-    personal_fit: 0.10,
-    timeline_fit: 0.05,
-  },
+  ...SCORING_CONFIG.orientationWeights,
+  balanced: { ...SCORING_CONFIG.defaultWeights } as ScoringWeights,
 };

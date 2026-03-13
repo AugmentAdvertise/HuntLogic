@@ -54,6 +54,17 @@ export default auth((req) => {
   const isAuthenticated = !!req.auth?.user?.id;
 
   // -------------------------------------------------------------------------
+  // 3a. Root "/" → redirect to landing site (unauthenticated) or dashboard
+  // -------------------------------------------------------------------------
+  const LANDING_SITE = process.env.LANDING_SITE_URL || "https://huntlogic-site.vercel.app";
+  if (pathname === "/") {
+    if (isAuthenticated) {
+      return NextResponse.redirect(new URL("/dashboard", req.url));
+    }
+    return NextResponse.redirect(LANDING_SITE);
+  }
+
+  // -------------------------------------------------------------------------
   // 4. Not authenticated + protected route → redirect to login
   // -------------------------------------------------------------------------
   if (!isAuthenticated && !isPublicRoute) {

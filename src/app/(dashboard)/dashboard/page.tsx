@@ -161,8 +161,8 @@ export default function DashboardPage() {
     return (
       <div className="space-y-6">
         <div>
-          <div className="h-7 w-48 animate-pulse rounded-lg bg-brand-sage/10" />
-          <div className="mt-1 h-5 w-32 animate-pulse rounded-lg bg-brand-sage/10" />
+          <div className="h-7 w-48 motion-safe:animate-pulse rounded-lg bg-brand-sage/10" />
+          <div className="mt-1 h-5 w-32 motion-safe:animate-pulse rounded-lg bg-brand-sage/10" />
         </div>
         <SkeletonList count={3} />
       </div>

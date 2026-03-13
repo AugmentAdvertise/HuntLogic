@@ -68,7 +68,7 @@ export function AlertBanner({ alerts: initialAlerts, onDismiss }: AlertBannerPro
           <div
             key={alert.id}
             className={cn(
-              "flex items-start gap-3 rounded-xl border p-3 animate-slide-up",
+              "flex items-start gap-3 rounded-xl border p-3 motion-safe:animate-slide-up",
               style.bg,
               style.border
             )}
@@ -92,7 +92,7 @@ export function AlertBanner({ alerts: initialAlerts, onDismiss }: AlertBannerPro
             </div>
             <button
               onClick={() => handleDismiss(alert.id)}
-              className={cn("shrink-0 p-1 rounded-md hover:bg-black/5", style.text)}
+              className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-md hover:bg-black/5", style.text)}
               aria-label="Dismiss alert"
             >
               <X className="h-4 w-4" />

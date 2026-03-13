@@ -24,40 +24,6 @@ interface StateGroup {
   totalPoints: number;
 }
 
-// Mock data for development
-const mockHoldings: PointHolding[] = [
-  {
-    id: "ph-1", userId: "u-1", stateId: "co-001", speciesId: "elk-001",
-    stateName: "Colorado", stateCode: "CO", speciesName: "Elk",
-    pointType: "preference", points: 3, yearStarted: 2023, verified: false,
-    createdAt: "2026-01-01", updatedAt: "2026-01-01",
-  },
-  {
-    id: "ph-2", userId: "u-1", stateId: "co-001", speciesId: "md-001",
-    stateName: "Colorado", stateCode: "CO", speciesName: "Mule Deer",
-    pointType: "preference", points: 5, yearStarted: 2021, verified: false,
-    createdAt: "2026-01-01", updatedAt: "2026-01-01",
-  },
-  {
-    id: "ph-3", userId: "u-1", stateId: "wy-001", speciesId: "elk-001",
-    stateName: "Wyoming", stateCode: "WY", speciesName: "Elk",
-    pointType: "preference", points: 5, yearStarted: 2021, verified: false,
-    createdAt: "2026-01-01", updatedAt: "2026-01-01",
-  },
-  {
-    id: "ph-4", userId: "u-1", stateId: "wy-001", speciesId: "md-001",
-    stateName: "Wyoming", stateCode: "WY", speciesName: "Mule Deer",
-    pointType: "preference", points: 2, yearStarted: 2024, verified: false,
-    createdAt: "2026-01-01", updatedAt: "2026-01-01",
-  },
-  {
-    id: "ph-5", userId: "u-1", stateId: "mt-001", speciesId: "elk-001",
-    stateName: "Montana", stateCode: "MT", speciesName: "Elk",
-    pointType: "bonus", points: 2, yearStarted: 2024, verified: false,
-    createdAt: "2026-01-01", updatedAt: "2026-01-01",
-  },
-];
-
 export default function PointsPage() {
   const [holdings, setHoldings] = useState<PointHolding[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -73,6 +39,34 @@ export default function PointsPage() {
   const [newPoints, setNewPoints] = useState(0);
   const [newYearStarted, setNewYearStarted] = useState(new Date().getFullYear());
 
+  // Dynamic dropdown options
+  const [availableStates, setAvailableStates] = useState<{ code: string; name: string }[]>([]);
+  const [availableSpecies, setAvailableSpecies] = useState<{ slug: string; name: string }[]>([]);
+
+  useEffect(() => {
+    async function fetchOptions() {
+      try {
+        const [statesRes, speciesRes] = await Promise.all([
+          fetch("/api/v1/regulations"),
+          fetch("/api/v1/species"),
+        ]);
+        if (statesRes.ok) {
+          const statesData = await statesRes.json();
+          const statesList = statesData.states || statesData.data || [];
+          setAvailableStates(statesList.map((s: { code: string; name: string }) => ({ code: s.code, name: s.name })));
+        }
+        if (speciesRes.ok) {
+          const speciesData = await speciesRes.json();
+          const speciesList = speciesData.species || speciesData.data || [];
+          setAvailableSpecies(speciesList.map((s: { slug: string; name: string }) => ({ slug: s.slug, name: s.name })));
+        }
+      } catch (err) {
+        console.error("[points] Failed to fetch dropdown options:", err);
+      }
+    }
+    fetchOptions();
+  }, []);
+
   useEffect(() => {
     async function fetchHoldings() {
       try {
@@ -81,8 +75,8 @@ export default function PointsPage() {
           const data = await res.json();
           setHoldings(data.data || data);
         }
-      } catch {
-        setHoldings(mockHoldings);
+      } catch (err) {
+        console.error("[points] Failed to fetch holdings:", err);
       } finally {
         setIsLoading(false);
       }
@@ -163,11 +157,11 @@ export default function PointsPage() {
     return (
       <div className="space-y-6">
         <div>
-          <div className="h-7 w-44 animate-pulse rounded-lg bg-brand-sage/10" />
-          <div className="mt-1 h-5 w-64 animate-pulse rounded-lg bg-brand-sage/10" />
+          <div className="h-7 w-44 motion-safe:animate-pulse rounded-lg bg-brand-sage/10" />
+          <div className="mt-1 h-5 w-64 motion-safe:animate-pulse rounded-lg bg-brand-sage/10" />
         </div>
         {[1, 2, 3].map((i) => (
-          <div key={i} className="h-16 w-full animate-pulse rounded-xl bg-brand-sage/10" />
+          <div key={i} className="h-16 w-full motion-safe:animate-pulse rounded-xl bg-brand-sage/10" />
         ))}
       </div>
     );
@@ -342,15 +336,11 @@ export default function PointsPage() {
               className="w-full min-h-[44px] rounded-xl border border-brand-sage/20 bg-white px-4 py-2.5 text-base dark:bg-brand-bark dark:border-brand-sage/30 dark:text-brand-cream"
             >
               <option value="">Select state</option>
-              <option value="CO">Colorado</option>
-              <option value="WY">Wyoming</option>
-              <option value="MT">Montana</option>
-              <option value="ID">Idaho</option>
-              <option value="NM">New Mexico</option>
-              <option value="AZ">Arizona</option>
-              <option value="UT">Utah</option>
-              <option value="NV">Nevada</option>
-              <option value="OR">Oregon</option>
+              {availableStates.map((s) => (
+                <option key={s.code} value={s.code}>
+                  {s.name}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -364,12 +354,11 @@ export default function PointsPage() {
               className="w-full min-h-[44px] rounded-xl border border-brand-sage/20 bg-white px-4 py-2.5 text-base dark:bg-brand-bark dark:border-brand-sage/30 dark:text-brand-cream"
             >
               <option value="">Select species</option>
-              <option value="Elk">Elk</option>
-              <option value="Mule Deer">Mule Deer</option>
-              <option value="Antelope">Antelope</option>
-              <option value="Moose">Moose</option>
-              <option value="Bighorn Sheep">Bighorn Sheep</option>
-              <option value="Mountain Goat">Mountain Goat</option>
+              {availableSpecies.map((s) => (
+                <option key={s.slug} value={s.name}>
+                  {s.name}
+                </option>
+              ))}
             </select>
           </div>
 

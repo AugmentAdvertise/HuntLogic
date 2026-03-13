@@ -87,7 +87,7 @@ export function DeadlineWidget({ deadlines, maxItems = 5 }: DeadlineWidgetProps)
                     <p
                       className={cn(
                         "text-sm font-semibold",
-                        isUrgent && "animate-pulse"
+                        isUrgent && "motion-safe:animate-pulse"
                       )}
                     >
                       {formatCountdown(deadline.date)}

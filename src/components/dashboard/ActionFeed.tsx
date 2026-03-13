@@ -86,7 +86,7 @@ export function ActionFeed({ actions, onComplete }: ActionFeedProps) {
             key={f.value}
             onClick={() => setFilter(f.value)}
             className={cn(
-              "shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors min-h-[36px]",
+              "shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors min-h-[44px]",
               filter === f.value
                 ? "bg-brand-forest text-brand-cream dark:bg-brand-sage"
                 : "bg-brand-sage/10 text-brand-sage hover:bg-brand-sage/20 dark:bg-brand-sage/20"
@@ -150,7 +150,7 @@ export function ActionFeed({ actions, onComplete }: ActionFeedProps) {
 
                 {/* Expanded content */}
                 {isExpanded && (
-                  <div className="border-t border-brand-sage/10 px-4 pb-4 pt-3 animate-slide-down dark:border-brand-sage/20">
+                  <div className="border-t border-brand-sage/10 px-4 pb-4 pt-3 motion-safe:animate-slide-down dark:border-brand-sage/20">
                     {action.description && (
                       <p className="text-sm text-brand-sage mb-3">
                         {action.description}

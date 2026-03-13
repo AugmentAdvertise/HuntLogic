@@ -25,19 +25,6 @@ interface CalendarDeadline {
   status: "upcoming" | "passed" | "today";
 }
 
-const mockDeadlines: CalendarDeadline[] = [
-  { id: "c1", date: "2026-03-15", state: "Arizona", stateCode: "AZ", title: "Spring turkey application", type: "application", status: "upcoming" },
-  { id: "c2", date: "2026-04-01", state: "Colorado", stateCode: "CO", title: "Primary draw application", type: "application", status: "upcoming" },
-  { id: "c3", date: "2026-04-01", state: "Colorado", stateCode: "CO", title: "Preference point purchase", type: "point_purchase", status: "upcoming" },
-  { id: "c4", date: "2026-04-15", state: "Wyoming", stateCode: "WY", title: "Moose/sheep/goat application", type: "application", status: "upcoming" },
-  { id: "c5", date: "2026-05-01", state: "Montana", stateCode: "MT", title: "Deer/elk combo application", type: "application", status: "upcoming" },
-  { id: "c6", date: "2026-06-01", state: "Colorado", stateCode: "CO", title: "Draw results published", type: "results", status: "upcoming" },
-  { id: "c7", date: "2026-06-10", state: "Arizona", stateCode: "AZ", title: "Fall hunt application", type: "application", status: "upcoming" },
-  { id: "c8", date: "2026-07-01", state: "Wyoming", stateCode: "WY", title: "Draw results published", type: "results", status: "upcoming" },
-  { id: "c9", date: "2026-09-01", state: "Colorado", stateCode: "CO", title: "Archery elk season opens", type: "season", status: "upcoming" },
-  { id: "c10", date: "2026-10-15", state: "Colorado", stateCode: "CO", title: "2nd rifle season opens", type: "season", status: "upcoming" },
-];
-
 const typeIcons: Record<string, typeof FileText> = {
   application: FileText,
   point_purchase: Award,
@@ -70,8 +57,8 @@ export default function CalendarPage() {
           const data = await res.json();
           setDeadlines(data.data || data);
         }
-      } catch {
-        setDeadlines(mockDeadlines);
+      } catch (err) {
+        console.error("[calendar] Failed to fetch deadlines:", err);
       } finally {
         setIsLoading(false);
       }
@@ -138,11 +125,11 @@ export default function CalendarPage() {
     return (
       <div className="space-y-6">
         <div>
-          <div className="h-7 w-32 animate-pulse rounded-lg bg-brand-sage/10" />
-          <div className="mt-1 h-5 w-56 animate-pulse rounded-lg bg-brand-sage/10" />
+          <div className="h-7 w-32 motion-safe:animate-pulse rounded-lg bg-brand-sage/10" />
+          <div className="mt-1 h-5 w-56 motion-safe:animate-pulse rounded-lg bg-brand-sage/10" />
         </div>
         {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="h-16 w-full animate-pulse rounded-xl bg-brand-sage/10" />
+          <div key={i} className="h-16 w-full motion-safe:animate-pulse rounded-xl bg-brand-sage/10" />
         ))}
       </div>
     );

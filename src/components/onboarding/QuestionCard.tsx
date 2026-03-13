@@ -174,7 +174,7 @@ export function QuestionCard({
                 State
               </label>
               <select
-                className="w-full min-h-[44px] rounded-xl border border-brand-sage/20 bg-white px-4 py-2.5 text-base text-brand-bark focus:outline-none focus:ring-2 focus:ring-brand-forest dark:bg-brand-bark dark:text-brand-cream dark:border-brand-sage/30"
+                className="w-full min-h-[44px] rounded-[10px] border border-[#E0DDD5] bg-white px-4 py-2.5 text-base text-brand-bark focus:outline-none focus:ring-2 focus:ring-brand-forest dark:bg-brand-bark dark:text-brand-cream dark:border-brand-sage/30"
                 onChange={(e) =>
                   setStructuredData((prev) => ({ ...prev, state: e.target.value }))
                 }
@@ -203,7 +203,7 @@ export function QuestionCard({
                 min={0}
                 max={30}
                 placeholder="0"
-                className="w-full min-h-[44px] rounded-xl border border-brand-sage/20 bg-white px-4 py-2.5 text-base text-brand-bark focus:outline-none focus:ring-2 focus:ring-brand-forest dark:bg-brand-bark dark:text-brand-cream dark:border-brand-sage/30"
+                className="w-full min-h-[44px] rounded-[10px] border border-[#E0DDD5] bg-white px-4 py-2.5 text-base text-brand-bark focus:outline-none focus:ring-2 focus:ring-brand-forest dark:bg-brand-bark dark:text-brand-cream dark:border-brand-sage/30"
                 onChange={(e) =>
                   setStructuredData((prev) => ({
                     ...prev,
@@ -231,7 +231,7 @@ export function QuestionCard({
                 onChange={(e) => setFreeText(e.target.value)}
                 placeholder="Type your answer..."
                 rows={3}
-                className="w-full rounded-xl border border-brand-sage/20 bg-white px-4 py-3 pr-12 text-base text-brand-bark resize-none focus:outline-none focus:ring-2 focus:ring-brand-forest dark:bg-brand-bark dark:text-brand-cream dark:border-brand-sage/30"
+                className="w-full rounded-[10px] border border-[#E0DDD5] bg-white px-4 py-3 pr-12 text-base text-brand-bark resize-none focus:outline-none focus:ring-2 focus:ring-brand-forest dark:bg-brand-bark dark:text-brand-cream dark:border-brand-sage/30"
               />
               <button
                 onClick={handleFreeTextSubmit}

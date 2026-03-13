@@ -25,7 +25,7 @@ export function Skeleton({
   return (
     <div
       className={cn(
-        "animate-pulse bg-brand-sage/10 dark:bg-brand-sage/20",
+        "motion-safe:animate-pulse bg-brand-sage/10 dark:bg-brand-sage/20",
         variantStyles[variant],
         className
       )}

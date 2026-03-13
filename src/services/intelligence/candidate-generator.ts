@@ -19,6 +19,8 @@ import {
 
 import type { HunterProfile } from "@/services/profile/types";
 import type { HuntCandidate, CostEstimate } from "./types";
+import { loadStateCosts } from "./cost-lookup";
+import { COST_CONFIG } from "./config";
 
 const LOG_PREFIX = "[intelligence]";
 
@@ -91,7 +93,7 @@ export function estimateDriveHours(fromState: string, toState: string): number {
 
   if (fromState.toUpperCase() === toState.toUpperCase()) return 0;
 
-  const R = 3959; // Earth radius in miles
+  const R = COST_CONFIG.earthRadiusMiles;
   const dLat = ((to.lat - from.lat) * Math.PI) / 180;
   const dLng = ((to.lng - from.lng) * Math.PI) / 180;
   const a =
@@ -104,89 +106,40 @@ export function estimateDriveHours(fromState: string, toState: string): number {
   const distanceMiles = R * c;
 
   // Apply routing factor (roads aren't straight lines) and divide by avg speed
-  const routingFactor = 1.3;
-  return Math.round((distanceMiles * routingFactor) / 50 * 10) / 10;
+  return Math.round((distanceMiles * COST_CONFIG.routingFactor) / COST_CONFIG.averageSpeedMph * 10) / 10;
 }
 
 // =============================================================================
 // Cost Estimation Helpers
 // =============================================================================
 
-/** Rough baseline cost estimates per state for nonresident big game tags */
-const BASE_TAG_COSTS: Record<string, number> = {
-  CO: 660,
-  WY: 600,
-  MT: 900,
-  ID: 550,
-  NM: 550,
-  AZ: 300,
-  UT: 400,
-  NV: 400,
-  OR: 500,
-  WA: 500,
-  SD: 280,
-  NE: 250,
-  KS: 400,
-};
-
-const BASE_LICENSE_COSTS: Record<string, number> = {
-  CO: 100,
-  WY: 100,
-  MT: 200,
-  ID: 155,
-  NM: 65,
-  AZ: 160,
-  UT: 65,
-  NV: 142,
-  OR: 165,
-  WA: 150,
-  SD: 110,
-  NE: 100,
-  KS: 80,
-};
-
-const POINT_COSTS: Record<string, number> = {
-  CO: 40,
-  WY: 50,
-  MT: 50,
-  ID: 0,
-  NM: 0,
-  AZ: 15,
-  UT: 10,
-  NV: 10,
-  OR: 8,
-  WA: 0,
-  SD: 0,
-  NE: 0,
-  KS: 0,
-};
-
 function estimateCost(
   stateCode: string,
   isResident: boolean,
-  driveHours: number | null
+  driveHours: number | null,
+  stateCosts: Map<string, { tagCost: number; licenseCost: number; pointCost: number }>
 ): CostEstimate {
-  const tag = (BASE_TAG_COSTS[stateCode] ?? 500) * (isResident ? 0.15 : 1);
-  const license = (BASE_LICENSE_COSTS[stateCode] ?? 100) * (isResident ? 0.25 : 1);
-  const points = POINT_COSTS[stateCode] ?? 20;
+  const costs = stateCosts.get(stateCode) ?? {
+    tagCost: COST_CONFIG.defaultTagCost,
+    licenseCost: COST_CONFIG.defaultLicenseCost,
+    pointCost: COST_CONFIG.defaultPointCost,
+  };
+  const tag = costs.tagCost * (isResident ? COST_CONFIG.residentTagMultiplier : 1);
+  const license = costs.licenseCost * (isResident ? COST_CONFIG.residentLicenseMultiplier : 1);
+  const points = costs.pointCost;
 
   // Travel cost: rough estimate based on drive hours
-  let travel = 0;
+  let travel = COST_CONFIG.defaultTravelCost;
   if (driveHours !== null) {
-    if (driveHours <= 4) {
-      travel = 200; // day trip range
-    } else if (driveHours <= 10) {
-      travel = 600; // drive + hotel
-    } else if (driveHours <= 20) {
-      travel = 1200; // long drive + multiple nights
-    } else {
-      travel = 2000; // likely need to fly
+    for (const tier of COST_CONFIG.travelTiers) {
+      if (driveHours <= tier.maxHours) {
+        travel = tier.cost;
+        break;
+      }
     }
-  } else {
-    travel = 1000; // default estimate
   }
 
-  const gear = 200; // baseline consumables per trip
+  const gear = COST_CONFIG.gearCostPerTrip;
 
   return {
     tag: Math.round(tag),
@@ -238,42 +191,19 @@ function getMaxDriveHours(profile: HunterProfile): number {
   if (typeof explicit === "number") return explicit;
 
   const tolerance = getTravelTolerance(profile);
-  switch (tolerance) {
-    case "local":
-      return 6;
-    case "regional":
-      return 14;
-    case "national":
-      return 30;
-    case "fly":
-      return 999;
-    default:
-      return 14;
-  }
+  return COST_CONFIG.travelToleranceHours[tolerance] ?? COST_CONFIG.defaultTravelToleranceHours;
 }
 
 function getBudgetCeiling(profile: HunterProfile): number {
   const val = getPreferenceValue(profile, "budget", "annual_budget");
   if (typeof val === "number") return val;
   if (typeof val === "string") {
-    switch (val) {
-      case "under_1000":
-        return 1000;
-      case "1000_3000":
-        return 3000;
-      case "3000_5000":
-        return 5000;
-      case "5000_10000":
-        return 10000;
-      case "over_10000":
-        return 25000;
-      default: {
-        const parsed = parseInt(val, 10);
-        return isNaN(parsed) ? 5000 : parsed;
-      }
-    }
+    const mapped = COST_CONFIG.budgetCeilingMappings[val];
+    if (mapped !== undefined) return mapped;
+    const parsed = parseInt(val, 10);
+    return isNaN(parsed) ? COST_CONFIG.defaultBudgetCeiling : parsed;
   }
-  return 5000; // default ceiling
+  return COST_CONFIG.defaultBudgetCeiling;
 }
 
 function getTimeline(profile: HunterProfile): string {
@@ -322,6 +252,7 @@ export async function generateCandidates(
 ): Promise<HuntCandidate[]> {
   console.log(`${LOG_PREFIX} generateCandidates: starting for user ${profile.id}`);
 
+  const stateCosts = await loadStateCosts();
   const filtersApplied: string[] = [];
 
   // ---- Extract profile constraints ----
@@ -469,7 +400,7 @@ export async function generateCandidates(
       if (
         physicalAbility === "limited" &&
         unit?.elevationMax &&
-        unit.elevationMax > 10000
+        unit.elevationMax > COST_CONFIG.highElevationCutoff
       ) {
         continue;
       }
@@ -481,10 +412,10 @@ export async function generateCandidates(
 
       // Estimate cost
       const isResident = homeState === state.code;
-      const cost = estimateCost(state.code, isResident, driveHours);
+      const cost = estimateCost(state.code, isResident, driveHours, stateCosts);
 
       // ---- 7c. Filter by budget ceiling ----
-      if (cost.total > budgetCeiling * 1.5) {
+      if (cost.total > budgetCeiling * COST_CONFIG.budgetCeilingMultiplier) {
         continue;
       }
 
@@ -548,7 +479,7 @@ export async function generateCandidates(
 
       if (timeline === "this_year") {
         // Only include OTC, high-odds draws, or leftovers
-        if (tagType === "draw" && drawRate !== null && drawRate < 0.15) {
+        if (tagType === "draw" && drawRate !== null && drawRate < COST_CONFIG.thisYearMinDrawRate) {
           continue; // Too low odds for this-year timeline
         }
         filtersApplied.push("timeline:this_year");
@@ -556,7 +487,7 @@ export async function generateCandidates(
 
       // ---- 7h. Hunt style filter ----
       if (huntStyle === "diy" && unit?.publicLandPct !== null) {
-        if ((unit?.publicLandPct ?? 0) < 15) {
+        if ((unit?.publicLandPct ?? 0) < COST_CONFIG.diyMinPublicLandPct) {
           continue; // Too little public land for DIY
         }
         filtersApplied.push("hunt_style:diy_public_land");

@@ -67,9 +67,9 @@ export default function ProfilePage() {
     return (
       <div className="space-y-6">
         <div className="flex flex-col items-center py-8">
-          <div className="h-20 w-20 animate-pulse rounded-full bg-brand-sage/10" />
-          <div className="mt-3 h-6 w-32 animate-pulse rounded-lg bg-brand-sage/10" />
-          <div className="mt-1 h-4 w-44 animate-pulse rounded-lg bg-brand-sage/10" />
+          <div className="h-20 w-20 motion-safe:animate-pulse rounded-full bg-brand-sage/10" />
+          <div className="mt-3 h-6 w-32 motion-safe:animate-pulse rounded-lg bg-brand-sage/10" />
+          <div className="mt-1 h-4 w-44 motion-safe:animate-pulse rounded-lg bg-brand-sage/10" />
         </div>
       </div>
     );

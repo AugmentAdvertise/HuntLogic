@@ -22,6 +22,7 @@ export function OnboardingFlow({ initialProgress = 0 }: OnboardingFlowProps) {
   const [progress, setProgress] = useState(initialProgress);
   const [isComplete, setIsComplete] = useState(false);
   const [, setSlideDirection] = useState<"left" | "right">("left");
+  const [questionNumber, setQuestionNumber] = useState(1);
   const [summary, setSummary] = useState<{
     species?: string[];
     orientation?: string;
@@ -52,6 +53,7 @@ export function OnboardingFlow({ initialProgress = 0 }: OnboardingFlowProps) {
       if (data.progress !== undefined) {
         setProgress(data.progress);
       }
+      setQuestionNumber((prev) => prev + 1);
     } catch {
       // In development/demo mode, show mock question
       setCurrentQuestion(getMockQuestion(progress));
@@ -129,7 +131,14 @@ export function OnboardingFlow({ initialProgress = 0 }: OnboardingFlowProps) {
     <div className="flex flex-col items-center w-full max-w-lg mx-auto">
       {/* Progress */}
       <div className="w-full mb-8">
-        <ProgressIndicator progress={progress} />
+        <ProgressIndicator
+          progress={progress}
+          questionLabel={
+            currentQuestion?.metadata?.estimatedRemainingQuestions != null
+              ? `Question ${questionNumber} of ${questionNumber + currentQuestion.metadata.estimatedRemainingQuestions}`
+              : undefined
+          }
+        />
       </div>
 
       {/* Question area */}
@@ -147,7 +156,7 @@ export function OnboardingFlow({ initialProgress = 0 }: OnboardingFlowProps) {
         ) : currentQuestion ? (
           <div
             key={currentQuestion.questionId}
-            className="animate-slide-up"
+            className="motion-safe:animate-slide-up"
           >
             <QuestionCard
               question={currentQuestion}

@@ -18,6 +18,7 @@ import type {
   ConfidenceLevel,
 } from "./types";
 import { DEFAULT_WEIGHTS, ORIENTATION_WEIGHTS } from "./types";
+import { SCORING_CONFIG, FORECAST_CONFIG } from "./config";
 
 const LOG_PREFIX = "[intelligence]";
 
@@ -66,7 +67,7 @@ export async function scoreDrawOdds(
 ): Promise<number> {
   // OTC = guaranteed tag
   if (candidate.hasOtc && candidate.tagType === "otc") return 1.0;
-  if (!candidate.hasDraw) return 0.8; // Unknown draw status → assume decent
+  if (!candidate.hasDraw) return SCORING_CONFIG.unknownDrawDefault; // Unknown draw status → assume decent
 
   // Check draw rate directly from candidate data
   if (candidate.latestDrawRate !== null) {
@@ -81,12 +82,12 @@ export async function scoreDrawOdds(
     if (candidate.hasPoints && minPoints > 0) {
       if (userPoints >= minPoints) {
         // At or above the minimum — draw rate is directly applicable or better
-        return Math.min(1.0, candidate.latestDrawRate + 0.15);
+        return Math.min(1.0, candidate.latestDrawRate + SCORING_CONFIG.drawOddsBoost);
       }
       // Below the minimum — penalize proportionally
       const deficit = minPoints - userPoints;
-      const deficitPenalty = Math.min(0.8, deficit * 0.1);
-      return Math.max(0.05, candidate.latestDrawRate - deficitPenalty);
+      const deficitPenalty = Math.min(SCORING_CONFIG.maxDeficitPenalty, deficit * SCORING_CONFIG.deficitPenaltyPerPoint);
+      return Math.max(SCORING_CONFIG.drawOddsFloor, candidate.latestDrawRate - deficitPenalty);
     }
 
     // No point system or no min points → use raw draw rate
@@ -115,7 +116,7 @@ export async function scoreDrawOdds(
   }
 
   // No data → moderate default
-  return 0.4;
+  return SCORING_CONFIG.noDataDrawDefault;
 }
 
 /**
@@ -130,7 +131,7 @@ export async function scoreTrophyQuality(
   )?.value;
 
   // If meat-focused, trophy quality is a non-factor — return neutral
-  if (orientation === "meat") return 0.5;
+  if (orientation === "meat") return SCORING_CONFIG.meatOrientationTrophyDefault;
 
   // Check candidate's trophy metrics
   if (candidate.trophyMetrics) {
@@ -143,7 +144,7 @@ export async function scoreTrophyQuality(
     if (avgScore !== null) {
       // Normalize B&C scores — this varies wildly by species
       // Use a simple approach: any score available means some quality tracking
-      return Math.min(1.0, Math.max(0.1, avgScore > 0 ? 0.6 + (avgScore / 1000) : 0.3));
+      return Math.min(1.0, Math.max(SCORING_CONFIG.trophyMinScore, avgScore > 0 ? SCORING_CONFIG.trophyBaseScore + (avgScore / SCORING_CONFIG.trophyBcDivisor) : SCORING_CONFIG.trophyNoScoreDefault));
     }
 
     if (maturePercent !== null) {
@@ -171,13 +172,13 @@ export async function scoreTrophyQuality(
       const tm = trophyStat.trophyMetrics as Record<string, unknown>;
       const score = (tm.avg_bc_score ?? tm.avg_trophy_score ?? null) as number | null;
       if (score !== null && score > 0) {
-        return Math.min(1.0, 0.5 + (score / 1000));
+        return Math.min(1.0, SCORING_CONFIG.trophyDbBaseScore + (score / SCORING_CONFIG.trophyBcDivisor));
       }
     }
   }
 
   // No data → moderate default
-  return 0.4;
+  return SCORING_CONFIG.trophyNoDataDefault;
 }
 
 /**
@@ -210,7 +211,7 @@ export async function scoreSuccessRate(candidate: HuntCandidate): Promise<number
   }
 
   // Default moderate success rate
-  return 0.35;
+  return SCORING_CONFIG.successRateNoDataDefault;
 }
 
 /**
@@ -224,31 +225,17 @@ export function scoreCostEfficiency(
     (p) => p.category === "budget" && p.key === "annual_budget"
   );
 
-  let budget = 5000; // default
+  let budget = SCORING_CONFIG.defaultBudget;
   if (budgetPref) {
     if (typeof budgetPref.value === "number") {
       budget = budgetPref.value;
     } else if (typeof budgetPref.value === "string") {
-      switch (budgetPref.value) {
-        case "under_1000":
-          budget = 1000;
-          break;
-        case "1000_3000":
-          budget = 2000;
-          break;
-        case "3000_5000":
-          budget = 4000;
-          break;
-        case "5000_10000":
-          budget = 7500;
-          break;
-        case "over_10000":
-          budget = 15000;
-          break;
-        default: {
-          const parsed = parseInt(budgetPref.value, 10);
-          if (!isNaN(parsed)) budget = parsed;
-        }
+      const mapped = SCORING_CONFIG.budgetMappings[budgetPref.value];
+      if (mapped !== undefined) {
+        budget = mapped;
+      } else {
+        const parsed = parseInt(budgetPref.value, 10);
+        if (!isNaN(parsed)) budget = parsed;
       }
     }
   }
@@ -258,13 +245,10 @@ export function scoreCostEfficiency(
 
   // Score inversely to cost-to-budget ratio
   const ratio = totalCost / budget;
-  if (ratio <= 0.3) return 1.0; // Very affordable
-  if (ratio <= 0.5) return 0.85;
-  if (ratio <= 0.75) return 0.7;
-  if (ratio <= 1.0) return 0.5;
-  if (ratio <= 1.25) return 0.3;
-  if (ratio <= 1.5) return 0.15;
-  return 0.05; // Over budget
+  for (const tier of SCORING_CONFIG.costRatioTiers) {
+    if (ratio <= tier.maxRatio) return tier.score;
+  }
+  return SCORING_CONFIG.wayOverBudgetScore; // Over budget
 }
 
 /**
@@ -278,20 +262,19 @@ export function scoreAccess(
     (p) => p.category === "land_access" && p.key === "private_land_likely"
   )?.value === true;
 
-  if (candidate.publicLandPct === null) return 0.5; // Unknown → neutral
+  if (candidate.publicLandPct === null) return SCORING_CONFIG.accessUnknownDefault; // Unknown → neutral
 
   if (preferPrivate) {
     // User prefers private land — less public land is fine
-    return 0.5 + (1 - candidate.publicLandPct / 100) * 0.5;
+    return SCORING_CONFIG.accessUnknownDefault + (1 - candidate.publicLandPct / 100) * SCORING_CONFIG.accessUnknownDefault;
   }
 
   // Default: more public land = better access score
   const pct = candidate.publicLandPct / 100;
-  if (pct >= 0.7) return 1.0;
-  if (pct >= 0.5) return 0.8;
-  if (pct >= 0.3) return 0.6;
-  if (pct >= 0.15) return 0.4;
-  return 0.2;
+  for (const tier of SCORING_CONFIG.publicLandTiers) {
+    if (pct >= tier.minPct / 100) return tier.score;
+  }
+  return SCORING_CONFIG.publicLandLowScore;
 }
 
 /**
@@ -299,7 +282,7 @@ export function scoreAccess(
  */
 export async function scoreForecast(candidate: HuntCandidate): Promise<number> {
   // Load multi-year draw odds to determine trend
-  if (!candidate.huntUnitId) return 0.5; // No unit → can't forecast
+  if (!candidate.huntUnitId) return SCORING_CONFIG.forecastNoDataDefault; // No unit → can't forecast
 
   const historicalOdds = await db
     .select()
@@ -312,9 +295,9 @@ export async function scoreForecast(candidate: HuntCandidate): Promise<number> {
       )
     )
     .orderBy(desc(drawOdds.year))
-    .limit(5);
+    .limit(FORECAST_CONFIG.maxForecastRecords);
 
-  if (historicalOdds.length < 2) return 0.5; // Insufficient data → neutral
+  if (historicalOdds.length < 2) return SCORING_CONFIG.forecastNoDataDefault; // Insufficient data → neutral
 
   // Check point creep trend
   const pointValues = historicalOdds
@@ -328,11 +311,12 @@ export async function scoreForecast(candidate: HuntCandidate): Promise<number> {
     const yearDiff = pvLast.year - pvFirst.year;
     if (yearDiff > 0) {
       const annualChange = (pvLast.points - pvFirst.points) / yearDiff;
-      if (annualChange > 0.5) return 0.2; // Rising point requirements — getting harder
-      if (annualChange > 0.1) return 0.35;
-      if (annualChange > -0.1) return 0.5; // Stable
-      if (annualChange > -0.5) return 0.65;
-      return 0.8; // Declining point requirements — getting easier
+      const t = SCORING_CONFIG.pointCreepThresholds;
+      if (annualChange > t.risingFast.threshold) return t.risingFast.score;
+      if (annualChange > t.risingSlow.threshold) return t.risingSlow.score;
+      if (annualChange > t.stable.threshold) return t.stable.score;
+      if (annualChange > t.decliningSlow.threshold) return t.decliningSlow.score;
+      return t.decliningFast.score; // Declining point requirements — getting easier
     }
   }
 
@@ -348,14 +332,15 @@ export async function scoreForecast(candidate: HuntCandidate): Promise<number> {
     const yearDiff = rvLast.year - rvFirst.year;
     if (yearDiff > 0) {
       const annualChange = (rvLast.rate - rvFirst.rate) / yearDiff;
-      if (annualChange > 0.05) return 0.75; // Improving draw odds
-      if (annualChange > 0) return 0.6;
-      if (annualChange > -0.05) return 0.45;
-      return 0.3; // Declining draw odds
+      const t = SCORING_CONFIG.drawRateTrend;
+      if (annualChange > t.improving.threshold) return t.improving.score;
+      if (annualChange > t.slightlyImproving.threshold) return t.slightlyImproving.score;
+      if (annualChange > t.slightlyDeclining.threshold) return t.slightlyDeclining.score;
+      return t.declining.score; // Declining draw odds
     }
   }
 
-  return 0.5;
+  return SCORING_CONFIG.forecastNoDataDefault;
 }
 
 /**
@@ -365,7 +350,7 @@ export function scorePersonalFit(
   candidate: HuntCandidate,
   profile: HunterProfile
 ): number {
-  let score = 0.5; // baseline
+  let score = SCORING_CONFIG.personalFitBaseline; // baseline
   let factors = 0;
 
   // Weapon match
@@ -383,7 +368,7 @@ export function scorePersonalFit(
         wt.toLowerCase().includes(wp.toLowerCase())
       )
     );
-    score += hasMatch ? 0.15 : -0.1;
+    score += hasMatch ? SCORING_CONFIG.weaponMatchBonus : SCORING_CONFIG.weaponMismatchPenalty;
   }
 
   // Terrain match vs physical ability
@@ -395,22 +380,22 @@ export function scorePersonalFit(
     const ability = physicalPref.value as string;
     if (ability === "high") {
       // High ability hunters match well with alpine/rugged
-      score += candidate.terrainClass === "alpine" ? 0.1 : 0.05;
+      score += candidate.terrainClass === "alpine" ? SCORING_CONFIG.terrainHighAbilityAlpineBonus : SCORING_CONFIG.terrainHighAbilityOtherBonus;
     } else if (ability === "limited") {
       score += candidate.terrainClass === "prairie" || candidate.terrainClass === "mixed"
-        ? 0.1
-        : -0.1;
+        ? SCORING_CONFIG.terrainLimitedGoodMatch
+        : SCORING_CONFIG.terrainLimitedBadMatch;
     } else {
-      score += 0.05; // Moderate matches most terrain
+      score += SCORING_CONFIG.terrainModerateBonus; // Moderate matches most terrain
     }
   }
 
   // Distance from home (closer = slight bonus for opportunity hunters)
   if (candidate.estimatedDriveHours !== null) {
     factors++;
-    if (candidate.estimatedDriveHours <= 4) score += 0.1;
-    else if (candidate.estimatedDriveHours <= 8) score += 0.05;
-    else if (candidate.estimatedDriveHours > 20) score -= 0.05;
+    if (candidate.estimatedDriveHours <= 4) score += SCORING_CONFIG.driveHourBonusShort;
+    else if (candidate.estimatedDriveHours <= 8) score += SCORING_CONFIG.driveHourBonusMedium;
+    else if (candidate.estimatedDriveHours > 20) score += SCORING_CONFIG.driveHourPenaltyLong;
   }
 
   // Hunt style match
@@ -419,7 +404,7 @@ export function scorePersonalFit(
   );
   if (diyPref?.value === true && candidate.publicLandPct !== null) {
     factors++;
-    score += candidate.publicLandPct > 50 ? 0.1 : -0.05;
+    score += candidate.publicLandPct > 50 ? SCORING_CONFIG.diyPublicLandBonus : SCORING_CONFIG.diyPrivateLandPenalty;
   }
 
   // Normalize to 0-1 range
@@ -439,16 +424,20 @@ export function scoreTimelineFit(
 
   const timeline = (timelinePref?.value as string) ?? "flexible";
 
+  const ty = SCORING_CONFIG.timelineThisYear;
+  const lt = SCORING_CONFIG.timelineLongTerm;
+  const fl = SCORING_CONFIG.timelineFlexible;
+
   if (timeline === "this_year") {
     // User wants to hunt NOW — favor OTC and high-odds draws
-    if (candidate.hasOtc || candidate.tagType === "otc") return 1.0;
-    if (candidate.tagType === "leftover") return 0.9;
+    if (candidate.hasOtc || candidate.tagType === "otc") return ty.otcScore;
+    if (candidate.tagType === "leftover") return ty.leftoverScore;
     if (candidate.latestDrawRate !== null) {
-      if (candidate.latestDrawRate > 0.5) return 0.8;
-      if (candidate.latestDrawRate > 0.25) return 0.5;
-      return 0.2; // Low odds + this_year = bad fit
+      if (candidate.latestDrawRate > ty.highOddsThreshold) return ty.highOddsScore;
+      if (candidate.latestDrawRate > ty.medOddsThreshold) return ty.medOddsScore;
+      return ty.lowOddsScore; // Low odds + this_year = bad fit
     }
-    return 0.4;
+    return ty.unknownScore;
   }
 
   if (timeline === "long_term") {
@@ -461,18 +450,18 @@ export function scoreTimelineFit(
       const points = holding?.points ?? 0;
       const minNeeded = candidate.latestMinPoints;
 
-      if (points >= minNeeded) return 0.9; // Already drawable
-      if (minNeeded - points <= 3) return 0.8; // Close
-      if (minNeeded - points <= 6) return 0.7; // Medium wait
-      return 0.5; // Long wait but user is OK with it
+      if (points >= minNeeded) return lt.drawableScore; // Already drawable
+      if (minNeeded - points <= lt.closeDeficit) return lt.closeScore; // Close
+      if (minNeeded - points <= lt.medDeficit) return lt.medScore; // Medium wait
+      return lt.farScore; // Long wait but user is OK with it
     }
-    return 0.6;
+    return lt.noPointsScore;
   }
 
   // Flexible or unknown → moderate score for everything
-  if (candidate.hasOtc || candidate.tagType === "otc") return 0.75;
-  if (candidate.latestDrawRate !== null && candidate.latestDrawRate > 0.3) return 0.7;
-  return 0.5;
+  if (candidate.hasOtc || candidate.tagType === "otc") return fl.otcScore;
+  if (candidate.latestDrawRate !== null && candidate.latestDrawRate > fl.goodOddsThreshold) return fl.goodOddsScore;
+  return fl.defaultScore;
 }
 
 // =============================================================================
@@ -481,7 +470,7 @@ export function scoreTimelineFit(
 
 function assessConfidence(candidate: HuntCandidate, factors: ScoringFactors): ConfidenceLevel {
   let dataPoints = 0;
-  let totalPossible = 6; // draw odds, harvest, trophy, forecast, access, season
+  const totalPossible = SCORING_CONFIG.totalDataPoints; // draw odds, harvest, trophy, forecast, access, season
 
   if (candidate.latestDrawRate !== null) dataPoints++;
   if (candidate.latestSuccessRate !== null) dataPoints++;
@@ -497,17 +486,17 @@ function assessConfidence(candidate: HuntCandidate, factors: ScoringFactors): Co
   const avg = factorValues.reduce((a, b) => a + b, 0) / factorValues.length;
   const variance = factorValues.reduce((a, b) => a + (b - avg) ** 2, 0) / factorValues.length;
 
-  const score = Math.min(1.0, dataRatio * 0.7 + (1 - Math.min(1, variance * 3)) * 0.3);
+  const score = Math.min(1.0, dataRatio * SCORING_CONFIG.confidenceDataRatioWeight + (1 - Math.min(1, variance * SCORING_CONFIG.confidenceVarianceScale)) * SCORING_CONFIG.confidenceVarianceWeight);
 
   let label: "high" | "medium" | "low";
   let basis: string;
 
-  if (score >= 0.7) {
+  if (score >= SCORING_CONFIG.confidenceHighThreshold) {
     label = "high";
     basis = `Based on ${dataPoints} data points including ${
       candidate.latestDrawRate !== null ? "draw odds" : ""
     }${candidate.latestSuccessRate !== null ? ", harvest stats" : ""}. Solid agency data.`;
-  } else if (score >= 0.4) {
+  } else if (score >= SCORING_CONFIG.confidenceMedThreshold) {
     label = "medium";
     basis = `Based on ${dataPoints} data points. Some data gaps exist ${
       candidate.latestDrawRate === null ? "(missing draw odds)" : ""
@@ -533,7 +522,7 @@ function classifyTimeline(
   }
 
   if (!candidate.hasPoints || candidate.latestMinPoints === null) {
-    if (candidate.latestDrawRate !== null && candidate.latestDrawRate > 0.3) {
+    if (candidate.latestDrawRate !== null && candidate.latestDrawRate > SCORING_CONFIG.timelineDrawRateThisYear) {
       return "this_year";
     }
     return "1-3_years";
@@ -546,8 +535,8 @@ function classifyTimeline(
   const deficit = (candidate.latestMinPoints ?? 0) - userPoints;
 
   if (deficit <= 0) return "this_year";
-  if (deficit <= 3) return "1-3_years";
-  if (deficit <= 6) return "3-5_years";
+  if (deficit <= SCORING_CONFIG.timelineCloseDeficit) return "1-3_years";
+  if (deficit <= SCORING_CONFIG.timelineMedDeficit) return "3-5_years";
   return "5+_years";
 }
 
@@ -563,7 +552,7 @@ function classifyRecType(
   if (candidate.hasOtc || candidate.tagType === "otc") return "otc_opportunity";
 
   if (timeline === "this_year") {
-    if (candidate.latestDrawRate !== null && candidate.latestDrawRate > 0.25) {
+    if (candidate.latestDrawRate !== null && candidate.latestDrawRate > SCORING_CONFIG.recTypeApplyNowDrawRate) {
       return "apply_now";
     }
   }
@@ -572,7 +561,7 @@ function classifyRecType(
     return "build_points";
   }
 
-  if (compositeScore > 0.6 && timeline !== "5+_years") return "apply_now";
+  if (compositeScore > SCORING_CONFIG.recTypeApplyNowMinScore && timeline !== "5+_years") return "apply_now";
   if (candidate.hasPoints) return "build_points";
 
   return "watch";
@@ -655,7 +644,7 @@ export async function scoreCandidates(
   const weights = resolveWeights(profile);
 
   // Score in batches to avoid overwhelming the DB
-  const batchSize = 20;
+  const batchSize = SCORING_CONFIG.scoringBatchSize;
   const scored: ScoredHunt[] = [];
 
   for (let i = 0; i < candidates.length; i += batchSize) {

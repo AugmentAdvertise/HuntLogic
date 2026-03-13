@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { Card, CardHeader, CardContent } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { PointCreepGraph } from "@/components/hunt/PointCreepGraph";
 import { DrawOddsChart } from "@/components/hunt/DrawOddsChart";
 import { SkeletonList } from "@/components/ui/Skeleton";
@@ -12,6 +13,7 @@ import {
   TrendingDown,
   Minus,
   Sparkles,
+  BarChart3,
 } from "lucide-react";
 
 interface ForecastSelection {
@@ -19,66 +21,26 @@ interface ForecastSelection {
   species: string;
 }
 
-const states = [
-  { code: "CO", name: "Colorado" },
-  { code: "WY", name: "Wyoming" },
-  { code: "MT", name: "Montana" },
-  { code: "AZ", name: "Arizona" },
-  { code: "NM", name: "New Mexico" },
-  { code: "UT", name: "Utah" },
-  { code: "NV", name: "Nevada" },
-  { code: "ID", name: "Idaho" },
-];
-
-const speciesList = [
-  { code: "elk", name: "Elk" },
-  { code: "mule_deer", name: "Mule Deer" },
-  { code: "antelope", name: "Pronghorn" },
-  { code: "moose", name: "Moose" },
-  { code: "sheep", name: "Bighorn Sheep" },
-];
-
-// Mock forecast data
-const mockForecastData = {
+interface ForecastData {
   pointCreep: {
-    historicalData: [
-      { year: 2020, points: 2 },
-      { year: 2021, points: 3 },
-      { year: 2022, points: 3 },
-      { year: 2023, points: 4 },
-      { year: 2024, points: 4 },
-      { year: 2025, points: 5 },
-    ],
-    projectedData: [
-      { year: 2026, points: 5 },
-      { year: 2027, points: 6 },
-      { year: 2028, points: 6 },
-      { year: 2029, points: 7 },
-    ],
-    userPoints: 3,
-    estimatedDrawYear: 2028,
-  },
+    historicalData: { year: number; points: number }[];
+    projectedData: { year: number; points: number }[];
+    userPoints: number;
+    estimatedDrawYear: number;
+  };
   drawOdds: {
-    atCurrentPoints: 15,
-    trend: [
-      { year: 2020, value: 25 },
-      { year: 2021, value: 22 },
-      { year: 2022, value: 18 },
-      { year: 2023, value: 16 },
-      { year: 2024, value: 15 },
-      { year: 2025, value: 14 },
-    ],
-  },
+    atCurrentPoints: number;
+    trend: { year: number; value: number }[];
+  };
   roi: {
-    recommendation: "buy" as const,
-    costPerOpportunity: 2800,
-    projectedYears: 3,
-    totalInvestment: 450,
-    explanation:
-      "Continue building points. Your investment of $50/year in preference points has strong projected returns. At current point creep rates, you should draw within 3 years with a total point investment of approximately $450. The hunt quality in your target units justifies this timeline.",
-  },
-  trend: "rising" as const,
-};
+    recommendation: string;
+    costPerOpportunity: number;
+    projectedYears: number;
+    totalInvestment: number;
+    explanation: string;
+  };
+  trend: string;
+}
 
 const roiColors: Record<string, { variant: "success" | "info" | "warning" | "danger"; label: string }> = {
   strong_buy: { variant: "success", label: "Strong Buy" },
@@ -95,22 +57,116 @@ const trendIcons: Record<string, typeof TrendingUp> = {
 };
 
 export default function ForecastsPage() {
+  const [availableStates, setAvailableStates] = useState<{ code: string; name: string }[]>([]);
+  const [availableSpecies, setAvailableSpecies] = useState<{ slug: string; name: string }[]>([]);
   const [selection, setSelection] = useState<ForecastSelection>({
-    state: "CO",
-    species: "elk",
+    state: "",
+    species: "",
   });
   const [isLoading, setIsLoading] = useState(false);
-  const [forecast] = useState(mockForecastData);
+  const [isInitializing, setIsInitializing] = useState(true);
+  const [forecast, setForecast] = useState<ForecastData | null>(null);
+
+  // Fetch available states and species on mount
+  useEffect(() => {
+    async function fetchOptions() {
+      try {
+        const [statesRes, speciesRes] = await Promise.all([
+          fetch("/api/v1/regulations"),
+          fetch("/api/v1/species"),
+        ]);
+
+        if (statesRes.ok) {
+          const statesData = await statesRes.json();
+          const statesList = statesData.states || statesData.data || [];
+          setAvailableStates(statesList.map((s: { code: string; name: string }) => ({ code: s.code, name: s.name })));
+        }
+
+        if (speciesRes.ok) {
+          const speciesData = await speciesRes.json();
+          const speciesList = speciesData.species || speciesData.data || [];
+          setAvailableSpecies(speciesList.map((s: { slug: string; name: string }) => ({ slug: s.slug, name: s.name })));
+        }
+      } catch (err) {
+        console.error("[forecasts] Failed to fetch dropdown options:", err);
+      } finally {
+        setIsInitializing(false);
+      }
+    }
+    fetchOptions();
+  }, []);
+
+  // Fetch forecast data when selection changes
+  useEffect(() => {
+    if (!selection.state || !selection.species) {
+      setForecast(null);
+      return;
+    }
+
+    async function fetchForecast() {
+      setIsLoading(true);
+      try {
+        const [pointCreepRes, roiRes] = await Promise.all([
+          fetch(`/api/v1/forecasts?type=point-creep&state=${selection.state}&species=${selection.species}`),
+          fetch(`/api/v1/forecasts?type=roi&state=${selection.state}&species=${selection.species}`),
+        ]);
+
+        if (pointCreepRes.ok && roiRes.ok) {
+          const pointCreepData = await pointCreepRes.json();
+          const roiData = await roiRes.json();
+
+          setForecast({
+            pointCreep: pointCreepData.forecast?.pointCreep ?? pointCreepData.forecast ?? {
+              historicalData: [],
+              projectedData: [],
+              userPoints: 0,
+              estimatedDrawYear: 0,
+            },
+            drawOdds: pointCreepData.forecast?.drawOdds ?? {
+              atCurrentPoints: 0,
+              trend: [],
+            },
+            roi: roiData.assessment ?? {
+              recommendation: "hold",
+              costPerOpportunity: 0,
+              projectedYears: 0,
+              totalInvestment: 0,
+              explanation: "",
+            },
+            trend: pointCreepData.forecast?.trend ?? "stable",
+          });
+        } else {
+          setForecast(null);
+        }
+      } catch (err) {
+        console.error("[forecasts] Failed to fetch forecast:", err);
+        setForecast(null);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    fetchForecast();
+  }, [selection.state, selection.species]);
 
   const handleSelectionChange = (field: keyof ForecastSelection, value: string) => {
     setSelection((prev) => ({ ...prev, [field]: value }));
-    // Simulate loading
-    setIsLoading(true);
-    setTimeout(() => setIsLoading(false), 800);
   };
 
-  const TrendIcon = trendIcons[forecast.trend] || Minus;
-  const roiInfo = roiColors[forecast.roi.recommendation] ?? roiColors.hold!;
+  const TrendIcon = forecast ? (trendIcons[forecast.trend] || Minus) : Minus;
+  const roiInfo = forecast ? (roiColors[forecast.roi.recommendation] ?? roiColors.hold!) : roiColors.hold!;
+
+  if (isInitializing) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <div className="h-7 w-40 motion-safe:animate-pulse rounded-lg bg-brand-sage/10" />
+          <div className="mt-1 h-5 w-56 motion-safe:animate-pulse rounded-lg bg-brand-sage/10" />
+        </div>
+        <SkeletonList count={3} />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -135,7 +191,8 @@ export default function ForecastsPage() {
             onChange={(e) => handleSelectionChange("state", e.target.value)}
             className="w-full min-h-[44px] rounded-xl border border-brand-sage/20 bg-white px-4 py-2.5 text-base text-brand-bark focus:outline-none focus:ring-2 focus:ring-brand-forest dark:bg-brand-bark dark:text-brand-cream dark:border-brand-sage/30"
           >
-            {states.map((s) => (
+            <option value="">Select state</option>
+            {availableStates.map((s) => (
               <option key={s.code} value={s.code}>
                 {s.name}
               </option>
@@ -151,8 +208,9 @@ export default function ForecastsPage() {
             onChange={(e) => handleSelectionChange("species", e.target.value)}
             className="w-full min-h-[44px] rounded-xl border border-brand-sage/20 bg-white px-4 py-2.5 text-base text-brand-bark focus:outline-none focus:ring-2 focus:ring-brand-forest dark:bg-brand-bark dark:text-brand-cream dark:border-brand-sage/30"
           >
-            {speciesList.map((s) => (
-              <option key={s.code} value={s.code}>
+            <option value="">Select species</option>
+            {availableSpecies.map((s) => (
+              <option key={s.slug} value={s.slug}>
                 {s.name}
               </option>
             ))}
@@ -162,6 +220,16 @@ export default function ForecastsPage() {
 
       {isLoading ? (
         <SkeletonList count={3} />
+      ) : !forecast ? (
+        <EmptyState
+          icon={<BarChart3 className="h-8 w-8" />}
+          title="No forecast data"
+          description={
+            !selection.state || !selection.species
+              ? "Select a state and species to view draw odds forecasts."
+              : "No forecast data is available for the selected state and species."
+          }
+        />
       ) : (
         <div className="space-y-4 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0">
           {/* Point Creep Trend */}
@@ -220,21 +288,6 @@ export default function ForecastsPage() {
                 label={`With ${forecast.pointCreep.userPoints} preference points`}
                 trend={forecast.drawOdds.trend}
               />
-
-              <div className="mt-4 grid grid-cols-3 gap-3">
-                <div className="rounded-lg bg-brand-sage/5 p-3 text-center dark:bg-brand-sage/10">
-                  <p className="text-xs text-brand-sage">Year 1</p>
-                  <p className="text-lg font-bold text-brand-bark dark:text-brand-cream">15%</p>
-                </div>
-                <div className="rounded-lg bg-brand-sage/5 p-3 text-center dark:bg-brand-sage/10">
-                  <p className="text-xs text-brand-sage">Year 3</p>
-                  <p className="text-lg font-bold text-brand-bark dark:text-brand-cream">42%</p>
-                </div>
-                <div className="rounded-lg bg-brand-sage/5 p-3 text-center dark:bg-brand-sage/10">
-                  <p className="text-xs text-brand-sage">Year 5</p>
-                  <p className="text-lg font-bold text-brand-bark dark:text-brand-cream">78%</p>
-                </div>
-              </div>
             </CardContent>
           </Card>
 
@@ -273,15 +326,17 @@ export default function ForecastsPage() {
               </div>
 
               {/* AI explanation */}
-              <div className="rounded-xl bg-brand-forest/5 p-4 dark:bg-brand-sage/10">
-                <h4 className="flex items-center gap-1.5 text-sm font-semibold text-brand-bark dark:text-brand-cream mb-2">
-                  <Sparkles className="h-4 w-4 text-brand-sunset" />
-                  What this means for you
-                </h4>
-                <p className="text-sm leading-relaxed text-brand-sage">
-                  {forecast.roi.explanation}
-                </p>
-              </div>
+              {forecast.roi.explanation && (
+                <div className="rounded-xl bg-brand-forest/5 p-4 dark:bg-brand-sage/10">
+                  <h4 className="flex items-center gap-1.5 text-sm font-semibold text-brand-bark dark:text-brand-cream mb-2">
+                    <Sparkles className="h-4 w-4 text-brand-sunset" />
+                    What this means for you
+                  </h4>
+                  <p className="text-sm leading-relaxed text-brand-sage">
+                    {forecast.roi.explanation}
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

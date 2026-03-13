@@ -10,27 +10,34 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // HuntLogic brand palette
+        // HuntLogic brand palette — synced with brand kit
         brand: {
-          forest: "#1B4332",
+          forest: "#1A3C2A",
+          forestLight: "#2A5C40",
           sage: "#52796F",
           earth: "#8B7355",
           sky: "#457B9D",
+          orange: "#C4651A",
+          gold: "#D4A03C",
           sunset: "#E07A5F",
-          cream: "#F4F1DE",
+          cream: "#F5F5F0",
           bark: "#3D2B1F",
         },
-        // Semantic colors
+        // Semantic colors — synced with brand kit
         success: {
           DEFAULT: "#22C55E",
           foreground: "#FFFFFF",
         },
         warning: {
-          DEFAULT: "#EAB308",
+          DEFAULT: "#F59E0B",
           foreground: "#1A1A1A",
         },
         danger: {
           DEFAULT: "#EF4444",
+          foreground: "#FFFFFF",
+        },
+        info: {
+          DEFAULT: "#3B82F6",
           foreground: "#FFFFFF",
         },
       },
@@ -58,6 +65,12 @@ const config: Config = {
         lg: "0.75rem",
         md: "0.5rem",
         sm: "0.25rem",
+        btn: "0.5rem",
+        input: "0.625rem",
+      },
+      boxShadow: {
+        card: "0 2px 12px rgba(0,0,0,0.06)",
+        "card-hover": "0 8px 30px rgba(0,0,0,0.1)",
       },
       animation: {
         "fade-in": "fadeIn 0.3s ease-in-out",

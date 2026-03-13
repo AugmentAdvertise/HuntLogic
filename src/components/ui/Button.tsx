@@ -18,9 +18,9 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variantStyles: Record<ButtonVariant, string> = {
   primary:
-    "bg-brand-forest text-brand-cream hover:bg-brand-sage focus-visible:ring-brand-forest dark:bg-brand-sage dark:hover:bg-brand-forest",
+    "bg-gradient-cta text-white shadow-md hover:-translate-y-0.5 hover:shadow-lg focus-visible:ring-brand-orange active:translate-y-0",
   secondary:
-    "bg-brand-earth text-white hover:bg-brand-earth/90 focus-visible:ring-brand-earth",
+    "bg-brand-forest text-brand-cream hover:bg-brand-forestLight focus-visible:ring-brand-forest dark:bg-brand-sage dark:hover:bg-brand-forest",
   outline:
     "border border-brand-sage/30 text-brand-bark bg-transparent hover:bg-brand-sage/5 focus-visible:ring-brand-sage dark:text-brand-cream dark:border-brand-sage/50 dark:hover:bg-brand-sage/10",
   ghost:
@@ -51,7 +51,7 @@ export function Button({
     <button
       disabled={disabled || isLoading}
       className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+        "inline-flex items-center justify-center gap-2 rounded-[8px] font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
         variantStyles[variant],
         sizeStyles[size],
         fullWidth && "w-full",

@@ -4,10 +4,11 @@ import { cn } from "@/lib/utils";
 
 interface ProgressIndicatorProps {
   progress: number; // 0-100
+  questionLabel?: string; // e.g. "Question 3 of 8"
   className?: string;
 }
 
-export function ProgressIndicator({ progress, className }: ProgressIndicatorProps) {
+export function ProgressIndicator({ progress, questionLabel, className }: ProgressIndicatorProps) {
   const clampedProgress = Math.min(100, Math.max(0, progress));
 
   const barColor =
@@ -23,7 +24,7 @@ export function ProgressIndicator({ progress, className }: ProgressIndicatorProp
     <div className={cn("w-full", className)}>
       <div className="mb-2 flex items-center justify-between">
         <span className="text-sm font-medium text-brand-bark dark:text-brand-cream">
-          Strategy Readiness
+          {questionLabel || "Strategy Readiness"}
         </span>
         <span className="text-sm font-semibold text-brand-bark dark:text-brand-cream">
           {Math.round(clampedProgress)}%
@@ -34,7 +35,7 @@ export function ProgressIndicator({ progress, className }: ProgressIndicatorProp
           className={cn(
             "h-full rounded-full transition-all duration-700 ease-out",
             barColor,
-            isPulse && "animate-pulse"
+            isPulse && "motion-safe:animate-pulse"
           )}
           style={{ width: `${clampedProgress}%` }}
         />

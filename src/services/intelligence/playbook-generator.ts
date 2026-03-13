@@ -102,7 +102,7 @@ async function buildRecommendationOutput(
   const rationale = await generateExplanation(hunt, profile, strategy);
 
   // Calculate ROI
-  const roi = calculateROI(hunt, profile);
+  const roi = await calculateROI(hunt, profile);
 
   // Get forecast for this state/species (if points-based)
   let forecast = undefined;

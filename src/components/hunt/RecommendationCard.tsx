@@ -51,6 +51,7 @@ export function RecommendationCard({
   const cardRef = useRef<HTMLDivElement>(null);
   const startX = useRef(0);
   const currentX = useRef(0);
+  const swipeDisabled = useRef(false);
 
   const { hunt, rationale, costEstimate, confidence, orientation } = recommendation;
   const orientationInfo = orientationLabels[orientation] ?? orientationLabels.balanced!;
@@ -61,10 +62,15 @@ export function RecommendationCard({
   const locationDisplay = hunt.stateName;
 
   const handleTouchStart = (e: React.TouchEvent) => {
+    // Disable swipe if touch starts on the scrollable metrics row
+    const target = e.target as HTMLElement;
+    swipeDisabled.current = !!target.closest("[data-metrics-row]");
     startX.current = e.touches[0]?.clientX ?? 0;
+    currentX.current = startX.current;
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
+    if (swipeDisabled.current) return;
     currentX.current = e.touches[0]?.clientX ?? 0;
     const diff = currentX.current - startX.current;
     if (cardRef.current && Math.abs(diff) > 10) {
@@ -74,6 +80,10 @@ export function RecommendationCard({
   };
 
   const handleTouchEnd = () => {
+    if (swipeDisabled.current) {
+      swipeDisabled.current = false;
+      return;
+    }
     const diff = currentX.current - startX.current;
     if (cardRef.current) {
       cardRef.current.style.transform = "";
@@ -81,10 +91,8 @@ export function RecommendationCard({
     }
 
     if (diff > 80) {
-      // Swipe right = save
       handleSave();
     } else if (diff < -80) {
-      // Swipe left = dismiss
       handleDismiss();
     }
   };
@@ -159,7 +167,7 @@ export function RecommendationCard({
         </h3>
 
         {/* Metrics row (horizontal scroll on mobile) */}
-        <div className="mt-3 flex gap-4 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
+        <div data-metrics-row className="mt-3 flex gap-4 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
           {metrics.map((metric) => {
             const Icon = metric.icon;
             return (
@@ -192,7 +200,7 @@ export function RecommendationCard({
             <button
               onClick={handleSave}
               className={cn(
-                "flex h-10 w-10 items-center justify-center rounded-full transition-colors",
+                "flex h-11 w-11 items-center justify-center rounded-full transition-colors",
                 isSaved
                   ? "bg-brand-sunset/10 text-brand-sunset"
                   : "bg-brand-sage/10 text-brand-sage hover:bg-brand-sunset/10 hover:text-brand-sunset"
@@ -204,7 +212,7 @@ export function RecommendationCard({
 
             <button
               onClick={handleDismiss}
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-sage/10 text-brand-sage transition-colors hover:bg-danger/10 hover:text-danger"
+              className="flex h-11 w-11 items-center justify-center rounded-full bg-brand-sage/10 text-brand-sage transition-colors hover:bg-danger/10 hover:text-danger"
               aria-label="Dismiss"
             >
               <X className="h-5 w-5" />
@@ -226,7 +234,7 @@ export function RecommendationCard({
 
         {/* Expanded details */}
         {isExpanded && (
-          <div className="mt-4 space-y-4 border-t border-brand-sage/10 pt-4 animate-slide-down dark:border-brand-sage/20">
+          <div className="mt-4 space-y-4 border-t border-brand-sage/10 pt-4 motion-safe:animate-slide-down dark:border-brand-sage/20">
             {/* Full rationale */}
             <div>
               <h4 className="text-sm font-semibold text-brand-bark dark:text-brand-cream flex items-center gap-1">

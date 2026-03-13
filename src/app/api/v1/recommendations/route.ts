@@ -12,6 +12,7 @@ import {
   states,
   species,
 } from "@/lib/db/schema";
+import { processRecommendationFeedback } from "@/services/intelligence/feedback-engine";
 
 const LOG_PREFIX = "[api:recommendations]";
 
@@ -210,40 +211,36 @@ export async function POST(request: NextRequest) {
       `${LOG_PREFIX} POST feedback: userId=${userId} recId=${recommendationId} feedback=${feedback}`
     );
 
-    // Verify the recommendation belongs to this user
-    const rec = await db.query.recommendations.findFirst({
-      where: and(
-        eq(recommendations.id, recommendationId),
-        eq(recommendations.userId, userId)
-      ),
+    // Map legacy feedback values to feedback engine actions
+    const actionMap: Record<string, "save" | "dismiss" | "like" | "dislike"> = {
+      save: "save",
+      like: "like",
+      dislike: "dislike",
+    };
+    const action = actionMap[feedback]!;
+
+    // Process feedback: updates recommendation status AND adjusts preference weights
+    const result = await processRecommendationFeedback({
+      userId,
+      recommendationId,
+      action,
     });
 
-    if (!rec) {
+    if (!result.success) {
       return NextResponse.json(
         { error: "Recommendation not found" },
         { status: 404 }
       );
     }
 
-    // Update feedback and status
-    let newStatus = rec.status;
-    if (feedback === "save") newStatus = "saved";
-    if (feedback === "dislike") newStatus = "dismissed";
-
-    await db
-      .update(recommendations)
-      .set({
-        userFeedback: feedback,
-        status: newStatus,
-        updatedAt: new Date(),
-      })
-      .where(eq(recommendations.id, recommendationId));
+    const newStatus = action === "save" || action === "like" ? "saved" : "dismissed";
 
     return NextResponse.json({
       success: true,
       recommendationId,
       feedback,
       status: newStatus,
+      preferencesAdjusted: result.adjustments,
     });
   } catch (error) {
     console.error(`${LOG_PREFIX} POST error:`, error);

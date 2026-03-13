@@ -21,11 +21,11 @@ export function CompletionScreen({
   const router = useRouter();
 
   return (
-    <div className="flex flex-col items-center justify-center px-4 py-8 text-center animate-fade-in">
+    <div className="flex flex-col items-center justify-center px-4 py-8 text-center motion-safe:animate-fade-in">
       {/* Celebration visual */}
       <div className="relative mb-6">
         {/* Glow effect */}
-        <div className="absolute inset-0 animate-pulse rounded-full bg-success/20 blur-xl" />
+        <div className="absolute inset-0 motion-safe:animate-pulse rounded-full bg-success/20 blur-xl" />
         <div className="relative flex h-24 w-24 items-center justify-center rounded-full bg-success/10">
           <div className="flex h-16 w-16 items-center justify-center rounded-full bg-success text-white">
             <Check className="h-8 w-8" strokeWidth={3} />
@@ -33,10 +33,10 @@ export function CompletionScreen({
         </div>
 
         {/* Confetti dots via CSS */}
-        <div className="absolute -top-2 -right-2 h-3 w-3 rounded-full bg-brand-sunset animate-bounce" style={{ animationDelay: "0.1s" }} />
-        <div className="absolute -top-1 -left-3 h-2 w-2 rounded-full bg-brand-sky animate-bounce" style={{ animationDelay: "0.3s" }} />
-        <div className="absolute -bottom-1 -right-4 h-2.5 w-2.5 rounded-full bg-warning animate-bounce" style={{ animationDelay: "0.5s" }} />
-        <div className="absolute top-1 left-[-16px] h-2 w-2 rounded-full bg-brand-forest animate-bounce" style={{ animationDelay: "0.2s" }} />
+        <div className="absolute -top-2 -right-2 h-3 w-3 rounded-full bg-brand-sunset motion-safe:animate-bounce" style={{ animationDelay: "0.1s" }} />
+        <div className="absolute -top-1 -left-3 h-2 w-2 rounded-full bg-brand-sky motion-safe:animate-bounce" style={{ animationDelay: "0.3s" }} />
+        <div className="absolute -bottom-1 -right-4 h-2.5 w-2.5 rounded-full bg-warning motion-safe:animate-bounce" style={{ animationDelay: "0.5s" }} />
+        <div className="absolute top-1 left-[-16px] h-2 w-2 rounded-full bg-brand-forest motion-safe:animate-bounce" style={{ animationDelay: "0.2s" }} />
       </div>
 
       {/* Headline */}

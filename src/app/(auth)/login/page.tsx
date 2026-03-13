@@ -156,7 +156,7 @@ function LoginForm() {
             }}
             placeholder="you@example.com"
             autoComplete="email"
-            className="w-full rounded-xl border border-brand-sage/20 bg-white px-4 py-3 text-sm text-brand-bark placeholder:text-brand-sage/50 focus:border-brand-forest focus:outline-none focus:ring-2 focus:ring-brand-forest/20 dark:border-brand-sage/30 dark:bg-brand-bark/20 dark:text-brand-cream dark:placeholder:text-brand-sage/40 dark:focus:border-brand-sage dark:focus:ring-brand-sage/20"
+            className="w-full rounded-[10px] border border-[#E0DDD5] bg-white px-4 py-3 text-sm text-brand-bark placeholder:text-brand-sage/50 focus:border-brand-forest focus:outline-none focus:ring-2 focus:ring-brand-forest/20 dark:border-brand-sage/30 dark:bg-brand-bark/20 dark:text-brand-cream dark:placeholder:text-brand-sage/40 dark:focus:border-brand-sage dark:focus:ring-brand-sage/20"
           />
           {emailError && (
             <p className="mt-1.5 text-xs text-red-600 dark:text-red-400">
@@ -168,7 +168,7 @@ function LoginForm() {
         <button
           type="submit"
           disabled={isLoading !== null}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand-forest px-4 py-3 text-sm font-medium text-white shadow-sm transition-all hover:bg-brand-forest/90 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 dark:bg-brand-sage dark:text-brand-forest dark:hover:bg-brand-sage/90"
+          className="flex w-full items-center justify-center gap-2 rounded-[8px] bg-gradient-cta px-4 py-3 text-sm font-semibold text-white shadow-md transition-all hover:-translate-y-0.5 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isLoading === "email" ? (
             <LoadingSpinner className="text-white" />

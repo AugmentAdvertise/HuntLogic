@@ -16,6 +16,8 @@ import type {
   PointValueAssessment,
   ConfidenceLevel,
 } from "./types";
+import { getStateCosts } from "./cost-lookup";
+import { FORECAST_CONFIG } from "./config";
 
 const LOG_PREFIX = "[forecast]";
 
@@ -89,29 +91,39 @@ function forecastConfidence(
   let score = 0;
 
   // More data points = more confidence
-  if (dataPoints >= 8) score += 0.35;
-  else if (dataPoints >= 5) score += 0.25;
-  else if (dataPoints >= 3) score += 0.15;
-  else score += 0.05;
+  let matched = false;
+  for (const tier of FORECAST_CONFIG.dataPointTiers) {
+    if (dataPoints >= tier.minPoints) {
+      score += tier.confidence;
+      matched = true;
+      break;
+    }
+  }
+  if (!matched) score += FORECAST_CONFIG.lowDataConfidence;
 
   // Higher R-squared = more predictable trend
-  score += r2 * 0.35;
+  score += r2 * FORECAST_CONFIG.r2Weight;
 
   // More years of history = more confidence
-  if (yearsOfData >= 8) score += 0.3;
-  else if (yearsOfData >= 5) score += 0.2;
-  else if (yearsOfData >= 3) score += 0.1;
-  else score += 0.05;
+  matched = false;
+  for (const tier of FORECAST_CONFIG.yearCoverageTiers) {
+    if (yearsOfData >= tier.minYears) {
+      score += tier.confidence;
+      matched = true;
+      break;
+    }
+  }
+  if (!matched) score += FORECAST_CONFIG.lowYearConfidence;
 
   const clampedScore = Math.min(1.0, Math.max(0, score));
 
   let label: ConfidenceLevel["label"];
   let basis: string;
 
-  if (clampedScore >= 0.65) {
+  if (clampedScore >= FORECAST_CONFIG.highConfidenceThreshold) {
     label = "high";
     basis = `Based on ${dataPoints} data points over ${yearsOfData} years with R²=${r2.toFixed(2)} trend fit.`;
-  } else if (clampedScore >= 0.35) {
+  } else if (clampedScore >= FORECAST_CONFIG.medConfidenceThreshold) {
     label = "medium";
     basis = `Based on ${dataPoints} data points over ${yearsOfData} years. Trend is moderately predictable (R²=${r2.toFixed(2)}).`;
   } else {
@@ -195,7 +207,7 @@ export async function forecastPointCreep(
     .from(drawOdds)
     .where(and(...conditions))
     .orderBy(desc(drawOdds.year))
-    .limit(15);
+    .limit(FORECAST_CONFIG.maxHistoricalRecords);
 
   // Extract min_points_drawn time series
   const pointSeries = historical
@@ -235,17 +247,17 @@ export async function forecastPointCreep(
 
   // Determine trend direction
   let trend: ForecastData["trend"];
-  if (regression.slope > 0.15) trend = "rising";
-  else if (regression.slope < -0.15) trend = "declining";
+  if (regression.slope > FORECAST_CONFIG.risingTrendThreshold) trend = "rising";
+  else if (regression.slope < FORECAST_CONFIG.decliningTrendThreshold) trend = "declining";
   else trend = "stable";
 
   // Project forward 1, 3, 5 years
-  const projections = [1, 3, 5].map((yearsAhead) => {
+  const projections = FORECAST_CONFIG.projectionYears.map((yearsAhead) => {
     const targetYear = currentYear + yearsAhead;
     const projected = Math.max(0, regression.slope * targetYear + regression.intercept);
 
     // Confidence band widens with projection distance
-    const uncertainty = (1 - regression.r2) * yearsAhead * 0.5 + yearsAhead * 0.3;
+    const uncertainty = (1 - regression.r2) * yearsAhead * FORECAST_CONFIG.uncertaintyR2Factor + yearsAhead * FORECAST_CONFIG.uncertaintyYearFactor;
     const lowerBound = Math.max(0, projected - uncertainty);
     const upperBound = projected + uncertainty;
 
@@ -264,7 +276,7 @@ export async function forecastPointCreep(
     "Does not account for potential regulation changes or tag quota adjustments.",
     `Based on ${pointSeries.length} years of draw data.`,
   ];
-  if (regression.r2 < 0.5) {
+  if (regression.r2 < FORECAST_CONFIG.lowR2Threshold) {
     assumptions.push(
       "Low trend fit (R² < 0.5) — point requirements may be more volatile than the trend suggests."
     );
@@ -330,10 +342,10 @@ export async function forecastDrawOdds(
       )
     )
     .orderBy(desc(drawOdds.year))
-    .limit(10);
+    .limit(FORECAST_CONFIG.maxDrawOddsRecords);
 
   const latestDraw = historical[0];
-  const baseDrawRate = latestDraw?.drawRate ?? 0.1;
+  const baseDrawRate = latestDraw?.drawRate ?? FORECAST_CONFIG.baseDrawRate;
   const currentMinPoints = latestDraw?.minPointsDrawn ?? 0;
 
   // For each horizon, estimate probability
@@ -347,14 +359,14 @@ export async function forecastDrawOdds(
     if (futurePoints >= projectedMinPoints) {
       // At or above projected min — adjust base draw rate upward
       const surplus = futurePoints - projectedMinPoints;
-      probability = Math.min(0.95, baseDrawRate + surplus * 0.08);
+      probability = Math.min(FORECAST_CONFIG.maxDrawProbability, baseDrawRate + surplus * FORECAST_CONFIG.pointSurplusBoost);
     } else {
       // Below projected min — draw odds decrease
       const deficit = projectedMinPoints - futurePoints;
-      probability = Math.max(0.01, baseDrawRate * Math.exp(-deficit * 0.5));
+      probability = Math.max(FORECAST_CONFIG.minDrawProbability, baseDrawRate * Math.exp(-deficit * FORECAST_CONFIG.deficitDecayRate));
     }
 
-    const confidenceDecay = Math.max(0.2, 1 - years * 0.12);
+    const confidenceDecay = Math.max(FORECAST_CONFIG.confidenceFloor, 1 - years * FORECAST_CONFIG.confidenceDecayPerYear);
 
     return {
       years,
@@ -459,11 +471,9 @@ export async function assessPointValue(
   // Get point creep forecast
   const creepForecast = await forecastPointCreep(stateId, speciesId);
 
-  // Estimate annual point cost
-  const POINT_COSTS: Record<string, number> = {
-    CO: 40, WY: 50, MT: 50, AZ: 15, UT: 10, NV: 10, OR: 8,
-  };
-  const annualCost = POINT_COSTS[stateCode] ?? 20;
+  // Look up annual point cost from database
+  const costs = await getStateCosts(stateCode);
+  const annualCost = costs.pointCost;
 
   // Calculate estimated years to tag
   let estimatedYearsToTag: number | null = null;

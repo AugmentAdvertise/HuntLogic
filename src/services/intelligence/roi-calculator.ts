@@ -8,6 +8,7 @@
 
 import type { HunterProfile } from "@/services/profile/types";
 import type { ScoredHunt, ROIAnalysis, CostComparison } from "./types";
+import { getStateCosts } from "./cost-lookup";
 
 const LOG_PREFIX = "[roi]";
 
@@ -18,11 +19,11 @@ const LOG_PREFIX = "[roi]";
 /**
  * Calculate the total point investment to date for a state/species.
  */
-function calculatePointInvestment(
+async function calculatePointInvestment(
   profile: HunterProfile,
   stateId: string,
   speciesId: string
-): number {
+): Promise<number> {
   const holding = profile.pointHoldings.find(
     (p) => p.stateId === stateId && p.speciesId === speciesId
   );
@@ -32,18 +33,8 @@ function calculatePointInvestment(
   const points = holding.points;
   const yearStarted = holding.yearStarted;
 
-  // Estimate annual point cost by state
-  const POINT_COSTS: Record<string, number> = {
-    CO: 40,
-    WY: 50,
-    MT: 50,
-    AZ: 15,
-    UT: 10,
-    NV: 10,
-    OR: 8,
-  };
-
-  const annualCost = POINT_COSTS[holding.stateCode] ?? 20;
+  const costs = await getStateCosts(holding.stateCode);
+  const annualCost = costs.pointCost;
 
   // If we know when they started, calculate actual investment
   if (yearStarted) {
@@ -62,16 +53,16 @@ function calculatePointInvestment(
 /**
  * Calculate ROI analysis for a single hunt recommendation.
  */
-export function calculateROI(
+export async function calculateROI(
   hunt: ScoredHunt,
   profile: HunterProfile
-): ROIAnalysis {
+): Promise<ROIAnalysis> {
   console.log(
     `${LOG_PREFIX} calculateROI: ${hunt.stateCode}/${hunt.speciesSlug}/${hunt.unitCode ?? "state"}`
   );
 
   const totalCost = hunt.estimatedCost;
-  const pointInvestment = calculatePointInvestment(
+  const pointInvestment = await calculatePointInvestment(
     profile,
     hunt.stateId,
     hunt.speciesId

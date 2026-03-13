@@ -50,7 +50,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
           disabled={disabled}
           rows={1}
           className={cn(
-            "flex-1 resize-none rounded-xl border border-brand-sage/20 bg-brand-cream/30 px-4 py-2.5 text-sm text-brand-bark",
+            "flex-1 resize-none rounded-[10px] border border-[#E0DDD5] bg-brand-cream/30 px-4 py-2.5 text-sm text-brand-bark",
             "placeholder:text-brand-sage/50 focus:border-brand-forest focus:outline-none focus:ring-1 focus:ring-brand-forest/30",
             "dark:bg-brand-bark/50 dark:text-brand-cream dark:border-brand-sage/30 dark:focus:border-brand-sage",
             "disabled:opacity-50"

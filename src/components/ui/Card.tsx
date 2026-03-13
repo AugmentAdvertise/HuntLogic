@@ -27,11 +27,11 @@ interface CardFooterProps {
 }
 
 const variantStyles: Record<CardVariant, string> = {
-  default: "bg-white border border-brand-sage/10 shadow-sm dark:bg-brand-bark dark:border-brand-sage/20",
-  elevated: "bg-white border border-brand-sage/10 shadow-md dark:bg-brand-bark dark:border-brand-sage/20",
+  default: "bg-white border border-[#E0DDD5] shadow-card dark:bg-brand-bark dark:border-white/[0.12]",
+  elevated: "bg-white border border-[#E0DDD5] shadow-card-hover dark:bg-brand-bark dark:border-white/[0.12]",
   outlined: "bg-transparent border border-brand-sage/20 dark:border-brand-sage/30",
   interactive:
-    "bg-white border border-brand-sage/10 shadow-sm transition-all duration-200 active:scale-[0.98] hover:shadow-md cursor-pointer dark:bg-brand-bark dark:border-brand-sage/20",
+    "bg-white border border-[#E0DDD5] shadow-card transition-all duration-200 hover:shadow-card-hover hover:-translate-y-1 active:translate-y-0 cursor-pointer dark:bg-brand-bark dark:border-white/[0.12]",
 };
 
 export function Card({
@@ -45,7 +45,7 @@ export function Card({
     <Component
       onClick={onClick}
       className={cn(
-        "w-full rounded-xl p-4 text-left",
+        "w-full rounded-xl p-6 text-left md:p-8",
         variantStyles[variant],
         className
       )}

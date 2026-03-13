@@ -6,8 +6,9 @@
 // =============================================================================
 
 import { NextRequest, NextResponse } from "next/server";
-
-const DEFAULT_STATES = ["AZ", "WY", "CO", "NV", "MT"];
+import { db } from "@/lib/db";
+import { states as statesTable } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
 
 // =============================================================================
 // POST /api/v1/ingestion/trigger — Trigger ingestion for priority states
@@ -32,7 +33,15 @@ export async function POST(request: NextRequest) {
       sourceId?: string;
     };
 
-    const targetStates = states?.length ? states : DEFAULT_STATES;
+    // If no states specified, load all enabled states from DB
+    let targetStates = states ?? [];
+    if (targetStates.length === 0) {
+      const enabledStates = await db
+        .select({ code: statesTable.code })
+        .from(statesTable)
+        .where(eq(statesTable.enabled, true));
+      targetStates = enabledStates.map((s) => s.code);
+    }
 
     // Lazy-import to avoid BullMQ queue initialization at build time
     const { triggerState, triggerSource } = await import("@/services/ingestion");

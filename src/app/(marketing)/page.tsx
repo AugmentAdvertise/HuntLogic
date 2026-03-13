@@ -10,6 +10,40 @@ import {
   BookOpen,
 } from "lucide-react";
 
+// ---------------------------------------------------------------------------
+// Marketing page configuration
+// TODO: Load from appConfig table when live analytics are available
+// ---------------------------------------------------------------------------
+
+const MARKETING_STATS = [
+  { label: "Active Hunters", value: "2,500+" },
+  { label: "States Covered", value: "10" },
+  { label: "Species Tracked", value: "15+" },
+  { label: "Deadlines Managed", value: "50k+" },
+];
+
+// Pricing configuration — update via appConfig table or Stripe dashboard
+const PRICING_TIERS = [
+  {
+    name: "Scout",
+    price: "Free",
+    features: ["Basic recommendations", "3 states", "Deadline alerts"],
+  },
+  {
+    name: "Hunter",
+    price: "$9/mo",
+    features: ["AI playbook", "All states", "Point strategy", "Priority support"],
+    highlighted: true,
+  },
+  {
+    name: "Outfitter",
+    price: "$29/mo",
+    features: ["Everything in Hunter", "Multi-hunter", "API access", "Custom reports"],
+  },
+];
+
+// ---------------------------------------------------------------------------
+
 const steps = [
   {
     number: "01",
@@ -80,13 +114,13 @@ export default function LandingPage() {
           <div className="flex items-center gap-3">
             <Link
               href="/login"
-              className="hidden text-sm font-medium text-brand-bark transition-colors hover:text-brand-forest sm:block dark:text-brand-cream/70 dark:hover:text-brand-cream"
+              className="text-sm font-medium text-brand-bark transition-colors hover:text-brand-forest dark:text-brand-cream/70 dark:hover:text-brand-cream"
             >
               Log in
             </Link>
             <Link
               href="/onboarding"
-              className="rounded-xl bg-brand-forest px-4 py-2 text-sm font-semibold text-brand-cream transition-colors hover:bg-brand-sage min-h-[40px] flex items-center dark:bg-brand-sage dark:hover:bg-brand-forest"
+              className="rounded-[8px] bg-gradient-cta px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md min-h-[40px] flex items-center"
             >
               Get Started
             </Link>
@@ -109,14 +143,14 @@ export default function LandingPage() {
           <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
             <Link
               href="/onboarding"
-              className="flex min-h-[48px] items-center gap-2 rounded-xl bg-brand-forest px-6 py-3 text-base font-semibold text-brand-cream transition-all hover:bg-brand-sage active:scale-[0.98] dark:bg-brand-sage dark:hover:bg-brand-forest"
+              className="flex min-h-[48px] items-center gap-2 rounded-[8px] bg-gradient-cta px-6 py-3 text-base font-semibold text-white shadow-md transition-all hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0"
             >
               Get Started Free
               <ArrowRight className="h-5 w-5" />
             </Link>
             <Link
               href="#features"
-              className="flex min-h-[48px] items-center rounded-xl border border-brand-sage/30 px-6 py-3 text-base font-semibold text-brand-bark transition-all hover:bg-brand-sage/5 dark:text-brand-cream dark:border-brand-sage/50"
+              className="flex min-h-[48px] items-center rounded-[8px] border border-brand-sage/30 px-6 py-3 text-base font-semibold text-brand-bark transition-all hover:bg-brand-sage/5 dark:text-brand-cream dark:border-brand-sage/50"
             >
               See How It Works
             </Link>
@@ -211,12 +245,7 @@ export default function LandingPage() {
           </p>
 
           <div className="mt-10 grid grid-cols-2 gap-6 md:grid-cols-4">
-            {[
-              { label: "Active Hunters", value: "2,500+" },
-              { label: "States Covered", value: "10" },
-              { label: "Species Tracked", value: "15+" },
-              { label: "Deadlines Managed", value: "50k+" },
-            ].map((stat) => (
+            {MARKETING_STATS.map((stat) => (
               <div key={stat.label}>
                 <p className="text-2xl font-bold text-brand-forest md:text-3xl dark:text-brand-sage">
                   {stat.value}
@@ -239,24 +268,7 @@ export default function LandingPage() {
           </p>
 
           <div className="mt-10 grid gap-4 sm:grid-cols-3">
-            {[
-              {
-                name: "Scout",
-                price: "Free",
-                features: ["Basic recommendations", "3 states", "Deadline alerts"],
-              },
-              {
-                name: "Hunter",
-                price: "$9/mo",
-                features: ["AI playbook", "All states", "Point strategy", "Priority support"],
-                highlighted: true,
-              },
-              {
-                name: "Outfitter",
-                price: "$29/mo",
-                features: ["Everything in Hunter", "Multi-hunter", "API access", "Custom reports"],
-              },
-            ].map((plan) => (
+            {PRICING_TIERS.map((plan) => (
               <div
                 key={plan.name}
                 className={`rounded-xl border p-6 text-left ${
@@ -298,7 +310,7 @@ export default function LandingPage() {
           <div className="mt-8">
             <Link
               href="/onboarding"
-              className="inline-flex min-h-[52px] items-center gap-2 rounded-xl bg-brand-forest px-8 py-3 text-lg font-semibold text-brand-cream transition-all hover:bg-brand-sage active:scale-[0.98] dark:bg-brand-sage dark:hover:bg-brand-forest"
+              className="inline-flex min-h-[52px] items-center gap-2 rounded-[8px] bg-gradient-cta px-8 py-3 text-lg font-semibold text-white shadow-md transition-all hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0"
             >
               Get Started Free
               <ArrowRight className="h-5 w-5" />

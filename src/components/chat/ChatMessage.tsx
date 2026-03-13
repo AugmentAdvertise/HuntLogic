@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { User, Crosshair } from "lucide-react";
+import { User } from "lucide-react";
 
 interface ChatMessageProps {
   role: "user" | "assistant";
@@ -25,13 +25,13 @@ export function ChatMessage({ role, content, isStreaming }: ChatMessageProps) {
           "flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
           isUser
             ? "bg-brand-forest text-brand-cream"
-            : "bg-brand-sage/20 text-brand-forest dark:bg-brand-sage/30 dark:text-brand-cream"
+            : "bg-brand-sage/20 dark:bg-brand-sage/30"
         )}
       >
         {isUser ? (
           <User className="h-4 w-4" />
         ) : (
-          <Crosshair className="h-4 w-4" />
+          <span className="text-base">🐻</span>
         )}
       </div>
 
@@ -46,7 +46,7 @@ export function ChatMessage({ role, content, isStreaming }: ChatMessageProps) {
       >
         {content}
         {isStreaming && (
-          <span className="ml-1 inline-block h-4 w-1 animate-pulse bg-brand-forest/60 dark:bg-brand-cream/60" />
+          <span className="ml-1 inline-block h-4 w-1 motion-safe:animate-pulse bg-brand-forest/60 dark:bg-brand-cream/60" />
         )}
       </div>
     </div>
