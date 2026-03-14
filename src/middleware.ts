@@ -14,6 +14,8 @@ const PUBLIC_ROUTES = new Set([
   "/pricing",
   "/features",
   "/about",
+  "/terms",
+  "/privacy",
   "/ops/login",
 ]);
 
