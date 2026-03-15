@@ -47,49 +47,9 @@ export const authConfig: NextAuthConfig = {
   // canonical URL may differ from the request host (e.g. preview URLs)
   trustHost: true,
 
-  // Explicitly disable __Secure-/__Host- cookie prefixes.
-  // useSecureCookies overrides custom cookie names, so we set it to false
-  // and manually set Secure flag on each cookie instead.
-  useSecureCookies: false,
-  cookies: {
-    sessionToken: {
-      name: "authjs.session-token",
-      options: {
-        httpOnly: true,
-        sameSite: "lax",
-        path: "/",
-        secure: true,
-      },
-    },
-    csrfToken: {
-      name: "authjs.csrf-token",
-      options: {
-        httpOnly: true,
-        sameSite: "lax",
-        path: "/",
-        secure: true,
-      },
-    },
-    callbackUrl: {
-      name: "authjs.callback-url",
-      options: {
-        httpOnly: true,
-        sameSite: "lax",
-        path: "/",
-        secure: true,
-      },
-    },
-    pkceCodeVerifier: {
-      name: "authjs.pkce.code_verifier",
-      options: {
-        httpOnly: true,
-        sameSite: "lax",
-        path: "/",
-        secure: true,
-        maxAge: 900,
-      },
-    },
-  },
+  // Let NextAuth auto-configure cookies based on the https protocol of AUTH_URL.
+  // Previously had useSecureCookies:false with manual overrides which broke
+  // PKCE cookie encryption/decryption on the Google OAuth callback.
 
   // ---------------------------------------------------------------------------
   // Providers
@@ -261,5 +221,5 @@ export const authConfig: NextAuthConfig = {
   // ---------------------------------------------------------------------------
   // Debug mode in development
   // ---------------------------------------------------------------------------
-  debug: process.env.NODE_ENV === "development",
+  debug: process.env.NODE_ENV === "development" || process.env.AUTH_DEBUG === "true",
 };

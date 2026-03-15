@@ -39,11 +39,17 @@ const PUBLIC_PREFIXES = [
 // don't need to manually clear them.
 // ---------------------------------------------------------------------------
 const STALE_COOKIE_NAMES = [
+  // Old unprefixed cookies from useSecureCookies:false era
+  "authjs.session-token",
+  "authjs.csrf-token",
+  "authjs.callback-url",
+  "authjs.pkce.code_verifier",
+  // Legacy prefixed cookies
   "__Secure-authjs.session-token",
   "__Host-authjs.csrf-token",
   "__Secure-authjs.callback-url",
   "__Secure-authjs.pkce.code_verifier",
-  // Legacy next-auth v4 names (just in case)
+  // Legacy next-auth v4 names
   "__Secure-next-auth.session-token",
   "__Host-next-auth.csrf-token",
   "__Secure-next-auth.callback-url",
