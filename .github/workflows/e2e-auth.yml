@@ -1,0 +1,48 @@
+name: E2E Auth Tests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/lib/auth/**'
+      - 'src/middleware.ts'
+      - 'src/app/(auth)/**'
+      - 'e2e/**'
+  pull_request:
+    paths:
+      - 'src/lib/auth/**'
+      - 'src/middleware.ts'
+      - 'src/app/(auth)/**'
+      - 'e2e/**'
+  # Run daily at 6am UTC to catch regressions from Vercel/dependency updates
+  schedule:
+    - cron: '0 6 * * *'
+
+jobs:
+  e2e-auth:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install chromium
+
+      - name: Run auth E2E tests against production
+        run: npx playwright test e2e/auth-sso.spec.ts --reporter=list
+        env:
+          PLAYWRIGHT_BASE_URL: https://huntlogic.vercel.app
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: test-results/
+          retention-days: 7
