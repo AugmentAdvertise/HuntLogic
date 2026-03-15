@@ -52,7 +52,20 @@ export default function ProfilePage() {
         const res = await fetch("/api/v1/profile");
         if (res.ok) {
           const data = await res.json();
-          setProfile(data.data);
+          const raw = data.data;
+          // Normalize API response to match ProfileData interface
+          setProfile({
+            name: raw.displayName || raw.name || "Hunter",
+            email: raw.email || "",
+            avatarUrl: raw.avatarUrl || null,
+            completeness: typeof raw.completeness === "object"
+              ? raw.completeness?.score ?? 0
+              : raw.completeness ?? 0,
+            statesActive: raw.statesActive ?? 0,
+            speciesTracked: raw.speciesTracked ?? raw.preferences?.filter((p: { category: string }) => p.category === "species_interest").length ?? 0,
+            totalPoints: raw.totalPoints ?? raw.pointHoldings?.length ?? 0,
+            onboardingComplete: raw.onboardingComplete ?? false,
+          });
         }
       } catch {
         setProfile(mockProfile);

@@ -15,6 +15,19 @@ import {
   Clock,
 } from "lucide-react";
 
+interface CalendarDeadlineRaw {
+  id: string;
+  deadlineDate?: string;
+  date?: string;
+  stateName?: string;
+  state?: string;
+  stateCode: string;
+  title: string;
+  deadlineType?: string;
+  type?: string;
+  status?: "upcoming" | "passed" | "today";
+}
+
 interface CalendarDeadline {
   id: string;
   date: string;
@@ -23,6 +36,20 @@ interface CalendarDeadline {
   title: string;
   type: "application" | "point_purchase" | "results" | "season";
   status: "upcoming" | "passed" | "today";
+}
+
+function normalizeDeadline(raw: CalendarDeadlineRaw): CalendarDeadline {
+  const date = raw.deadlineDate || raw.date || "";
+  const days = date ? Math.ceil((new Date(date).getTime() - Date.now()) / 86400000) : 0;
+  return {
+    id: raw.id,
+    date,
+    state: raw.stateName || raw.state || raw.stateCode,
+    stateCode: raw.stateCode,
+    title: raw.title,
+    type: (raw.deadlineType || raw.type || "application") as CalendarDeadline["type"],
+    status: raw.status || (days < 0 ? "passed" : days === 0 ? "today" : "upcoming"),
+  };
 }
 
 const typeIcons: Record<string, typeof FileText> = {
@@ -55,7 +82,8 @@ export default function CalendarPage() {
         const res = await fetch("/api/v1/deadlines?upcoming=true");
         if (res.ok) {
           const data = await res.json();
-          setDeadlines(data.deadlines || []);
+          const raw: CalendarDeadlineRaw[] = data.deadlines || [];
+          setDeadlines(raw.map(normalizeDeadline));
         }
       } catch (err) {
         console.error("[calendar] Failed to fetch deadlines:", err);
