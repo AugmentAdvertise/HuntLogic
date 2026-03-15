@@ -1,0 +1,54 @@
+name: Auth Config Guard
+
+on:
+  push:
+    paths:
+      - 'src/lib/auth/**'
+      - 'src/middleware.ts'
+  pull_request:
+    paths:
+      - 'src/lib/auth/**'
+      - 'src/middleware.ts'
+
+jobs:
+  auth-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Block useSecureCookies true
+        run: |
+          if grep -rn 'useSecureCookies:\s*true' src/lib/auth/; then
+            echo "❌ BLOCKED: useSecureCookies: true found in auth config"
+            echo "This breaks cookie names and causes SSO loops."
+            echo "Use useSecureCookies: false with manual secure: true on each cookie."
+            exit 1
+          fi
+          echo "✅ No useSecureCookies: true found"
+
+      - name: Block __Host- and __Secure- cookie prefixes
+        run: |
+          if grep -rn '__Host-\|__Secure-' src/lib/auth/; then
+            echo "❌ BLOCKED: __Host- or __Secure- cookie prefix found"
+            echo "These prefixes break fetch() POST cookie handling."
+            echo "Use standard 'authjs.*' cookie names with secure: true."
+            exit 1
+          fi
+          echo "✅ No prefixed cookie names found"
+
+      - name: Verify trustHost is enabled
+        run: |
+          if ! grep -q 'trustHost:\s*true' src/lib/auth/config.ts; then
+            echo "❌ BLOCKED: trustHost: true not found in auth config"
+            echo "Required for Vercel multi-host deployments."
+            exit 1
+          fi
+          echo "✅ trustHost: true confirmed"
+
+      - name: Verify native form POST for OAuth
+        run: |
+          if grep -n 'signIn("google")\|signIn(.google.)' src/app/\(auth\)/login/page.tsx; then
+            echo "⚠️ WARNING: signIn('google') found in login page"
+            echo "Prefer native <form method=POST> for OAuth providers."
+          fi
+          echo "✅ Login page check complete"

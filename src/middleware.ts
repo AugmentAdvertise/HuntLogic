@@ -1,5 +1,5 @@
 // =============================================================================
-// Next.js Middleware — Auth protection + onboarding redirects
+// Next.js Middleware — Auth protection + onboarding redirects + stale cookie cleanup
 // =============================================================================
 
 import { auth } from "@/lib/auth";
@@ -32,14 +32,50 @@ const PUBLIC_PREFIXES = [
   "/favicon",
 ];
 
+// ---------------------------------------------------------------------------
+// Stale cookie cleanup: after AUTH_SECRET rotation, old session cookies
+// signed with the previous secret cause JWTSessionError → infinite login loop.
+// This middleware deletes legacy prefixed cookies on every request so users
+// don't need to manually clear them.
+// ---------------------------------------------------------------------------
+const STALE_COOKIE_NAMES = [
+  "__Secure-authjs.session-token",
+  "__Host-authjs.csrf-token",
+  "__Secure-authjs.callback-url",
+  "__Secure-authjs.pkce.code_verifier",
+  // Legacy next-auth v4 names (just in case)
+  "__Secure-next-auth.session-token",
+  "__Host-next-auth.csrf-token",
+  "__Secure-next-auth.callback-url",
+];
+
+function cleanStaleCookies(
+  req: Parameters<Parameters<typeof auth>[0]>[0],
+  res: NextResponse
+): NextResponse {
+  for (const name of STALE_COOKIE_NAMES) {
+    if (req.cookies.get(name)) {
+      res.cookies.set(name, "", {
+        expires: new Date(0),
+        path: "/",
+        secure: true,
+        httpOnly: true,
+      });
+    }
+  }
+  return res;
+}
+
 export default auth((req) => {
   const { pathname } = req.nextUrl;
+  let response: NextResponse;
 
   // -------------------------------------------------------------------------
   // 1. Always allow public prefixes
   // -------------------------------------------------------------------------
   if (PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix))) {
-    return NextResponse.next();
+    response = NextResponse.next();
+    return cleanStaleCookies(req, response);
   }
 
   // -------------------------------------------------------------------------
@@ -56,7 +92,8 @@ export default auth((req) => {
         { status: 401 }
       );
     }
-    return NextResponse.next();
+    response = NextResponse.next();
+    return cleanStaleCookies(req, response);
   }
 
   // -------------------------------------------------------------------------
@@ -67,7 +104,8 @@ export default auth((req) => {
     if (!opsToken) {
       return NextResponse.redirect(new URL("/ops/login", req.url));
     }
-    return NextResponse.next();
+    response = NextResponse.next();
+    return cleanStaleCookies(req, response);
   }
 
   // -------------------------------------------------------------------------
@@ -77,7 +115,8 @@ export default auth((req) => {
     pathname.includes(".") &&
     !pathname.startsWith("/api/")
   ) {
-    return NextResponse.next();
+    response = NextResponse.next();
+    return cleanStaleCookies(req, response);
   }
 
   // -------------------------------------------------------------------------
@@ -92,9 +131,11 @@ export default auth((req) => {
   const LANDING_SITE = process.env.LANDING_SITE_URL || "https://huntlogic-site.vercel.app";
   if (pathname === "/") {
     if (isAuthenticated) {
-      return NextResponse.redirect(new URL("/dashboard", req.url));
+      response = NextResponse.redirect(new URL("/dashboard", req.url));
+    } else {
+      response = NextResponse.redirect(LANDING_SITE);
     }
-    return NextResponse.redirect(LANDING_SITE);
+    return cleanStaleCookies(req, response);
   }
 
   // -------------------------------------------------------------------------
@@ -103,7 +144,8 @@ export default auth((req) => {
   if (!isAuthenticated && !isPublicRoute) {
     const loginUrl = new URL("/login", req.url);
     loginUrl.searchParams.set("callbackUrl", pathname);
-    return NextResponse.redirect(loginUrl);
+    response = NextResponse.redirect(loginUrl);
+    return cleanStaleCookies(req, response);
   }
 
   // -------------------------------------------------------------------------
@@ -116,7 +158,8 @@ export default auth((req) => {
       !pathname.startsWith("/api/") &&
       !isPublicRoute
     ) {
-      return NextResponse.redirect(new URL("/onboarding", req.url));
+      response = NextResponse.redirect(new URL("/onboarding", req.url));
+      return cleanStaleCookies(req, response);
     }
   }
 
@@ -125,11 +168,13 @@ export default auth((req) => {
   // -------------------------------------------------------------------------
   if (isAuthenticated && req.auth?.user?.onboardingComplete) {
     if (pathname.startsWith("/onboarding")) {
-      return NextResponse.redirect(new URL("/dashboard", req.url));
+      response = NextResponse.redirect(new URL("/dashboard", req.url));
+      return cleanStaleCookies(req, response);
     }
   }
 
-  return NextResponse.next();
+  response = NextResponse.next();
+  return cleanStaleCookies(req, response);
 });
 
 // =============================================================================
