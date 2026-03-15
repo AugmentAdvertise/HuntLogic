@@ -47,6 +47,41 @@ export const authConfig: NextAuthConfig = {
   // canonical URL may differ from the request host (e.g. preview URLs)
   trustHost: true,
 
+  // Use non-prefixed cookie names so SameSite works correctly with fetch() POST
+  // __Host- and __Secure- prefixed cookies require Secure flag which prevents
+  // the CSRF cookie from being sent with the signIn() fetch POST in some browsers
+  useSecureCookies: process.env.NODE_ENV === "production",
+  cookies: {
+    csrfToken: {
+      name: "authjs.csrf-token",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+      },
+    },
+    callbackUrl: {
+      name: "authjs.callback-url",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+      },
+    },
+    pkceCodeVerifier: {
+      name: "authjs.pkce.code_verifier",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+        maxAge: 900,
+      },
+    },
+  },
+
   // ---------------------------------------------------------------------------
   // Providers
   // ---------------------------------------------------------------------------
