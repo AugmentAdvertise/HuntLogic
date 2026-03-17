@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/Button";
 import { Check, Sparkles } from "lucide-react";
 
@@ -20,14 +21,18 @@ export function CompletionScreen({
   onContinueRefining,
 }: CompletionScreenProps) {
   const router = useRouter();
+  const { update } = useSession();
   const [isNavigating, setIsNavigating] = useState(false);
 
   const handleViewPlaybook = async () => {
     setIsNavigating(true);
-    // Mark onboarding complete in DB so middleware allows /dashboard
+    // Mark onboarding complete in DB
     await fetch("/api/v1/onboarding/complete", { method: "POST" });
-    // Force JWT refresh so middleware sees onboardingComplete = true
-    await fetch("/api/auth/session");
+    // Force JWT refresh — triggers jwt callback with trigger="update",
+    // which re-reads onboardingComplete from DB into the token.
+    // Without this, the middleware still sees the old JWT value and
+    // redirects back to /onboarding.
+    await update();
     router.push("/dashboard");
   };
 
