@@ -2,14 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { OnboardingFlow } from "@/components/onboarding/OnboardingFlow";
 
 export default function OnboardingPage() {
   const router = useRouter();
+  const { update } = useSession();
   const [isCheckingStatus, setIsCheckingStatus] = useState(true);
 
   useEffect(() => {
-    // Check if user is already onboarded
     async function checkOnboardingStatus() {
       try {
         const res = await fetch("/api/v1/profile");
@@ -31,7 +32,7 @@ export default function OnboardingPage() {
 
   const handleSkipOnboarding = async () => {
     await fetch("/api/v1/onboarding/complete", { method: "POST" });
-    await fetch("/api/auth/session");
+    await update();
     router.push("/dashboard");
   };
 
@@ -49,7 +50,7 @@ export default function OnboardingPage() {
       <div style={{ paddingTop: "env(safe-area-inset-top)" }} />
 
       {/* Header with logo and skip */}
-      <div className="flex items-center justify-between px-4 pt-6 pb-2">
+      <div className="mx-auto w-full max-w-2xl flex items-center justify-between px-4 sm:px-8 pt-6 pb-2">
         <div className="w-16" />
         <div className="text-center">
           <h1 className="text-xl font-bold text-brand-forest dark:text-brand-cream">
@@ -68,7 +69,7 @@ export default function OnboardingPage() {
       </div>
 
       {/* Onboarding Flow */}
-      <div className="px-4 py-6">
+      <div className="mx-auto w-full max-w-2xl px-4 sm:px-8 py-6 md:py-12">
         <OnboardingFlow />
       </div>
 
