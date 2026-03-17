@@ -120,7 +120,7 @@ export function QuestionCard({
   };
 
   return (
-    <div className="w-full max-w-lg mx-auto animate-fade-in">
+    <div className="w-full mx-auto animate-fade-in">
       {/* Back button */}
       {onBack && (
         <button
@@ -147,7 +147,7 @@ export function QuestionCard({
       {/* Response area */}
       <div className="mt-6 space-y-3">
         {question.responseType === "single_select" && (
-          <div className="space-y-2">
+          <div className="space-y-2 md:grid md:grid-cols-2 md:gap-3 md:space-y-0">
             {question.options.map((option) => (
               <button
                 key={option.value}
@@ -178,7 +178,7 @@ export function QuestionCard({
 
         {question.responseType === "multi_select" && (
           <>
-            <div className="space-y-2">
+            <div className="space-y-2 md:grid md:grid-cols-2 md:gap-3 md:space-y-0">
               {question.options.map((option) => {
                 const isSelected = selectedValues.includes(option.value);
                 return (

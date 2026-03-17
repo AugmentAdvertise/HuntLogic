@@ -212,7 +212,7 @@ export function OnboardingFlow({ initialProgress = 0 }: OnboardingFlowProps) {
   }
 
   return (
-    <div className="flex flex-col items-center w-full max-w-lg mx-auto">
+    <div className="flex flex-col items-center w-full max-w-lg md:max-w-xl mx-auto">
       {/* Progress */}
       <div className="w-full mb-8">
         <ProgressIndicator

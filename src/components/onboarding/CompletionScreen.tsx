@@ -68,7 +68,7 @@ export function CompletionScreen({
 
       {/* Summary */}
       {summary && (
-        <div className="mt-6 w-full max-w-sm rounded-xl border border-brand-sage/10 bg-white/50 p-4 dark:bg-brand-bark/50 dark:border-brand-sage/20">
+        <div className="mt-6 w-full max-w-sm md:max-w-md rounded-xl border border-brand-sage/10 bg-white/50 p-4 dark:bg-brand-bark/50 dark:border-brand-sage/20">
           <h3 className="mb-3 flex items-center justify-center gap-2 text-sm font-semibold text-brand-bark dark:text-brand-cream">
             <Sparkles className="h-4 w-4 text-brand-sunset" />
             What we learned
@@ -111,7 +111,7 @@ export function CompletionScreen({
       )}
 
       {/* CTAs */}
-      <div className="mt-8 w-full max-w-sm space-y-3">
+      <div className="mt-8 w-full max-w-sm md:max-w-md space-y-3">
         <Button
           fullWidth
           size="lg"
