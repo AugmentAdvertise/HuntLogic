@@ -4,32 +4,17 @@
 
 "use client";
 
-import { useState, Suspense } from "react";
-import { signIn } from "next-auth/react";
+import { useActionState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { resendMagicLink } from "./actions";
 
 function VerifyContent() {
   const searchParams = useSearchParams();
   const email = searchParams.get("email") ?? "";
-  const [isResending, setIsResending] = useState(false);
-  const [resent, setResent] = useState(false);
+  const [state, formAction, isPending] = useActionState(resendMagicLink, null);
 
-  const handleResend = async () => {
-    if (!email || isResending) return;
-
-    setIsResending(true);
-    try {
-      await signIn("resend", {
-        email,
-        redirect: false,
-      });
-      setResent(true);
-    } catch {
-      // Silently handle — user can try again
-    }
-    setIsResending(false);
-  };
+  const resent = state?.sent === true;
 
   return (
     <div className="rounded-2xl border border-brand-sage/10 bg-white/80 p-6 text-center shadow-lg backdrop-blur-sm dark:border-brand-sage/20 dark:bg-brand-bark/40">
@@ -69,20 +54,30 @@ function VerifyContent() {
         The link will expire in 24 hours.
       </p>
 
+      {/* Error */}
+      {state?.error && (
+        <p className="mt-3 text-xs text-red-600 dark:text-red-400">
+          {state.error}
+        </p>
+      )}
+
       {/* Actions */}
       <div className="mt-6 space-y-3">
-        {/* Resend button */}
-        <button
-          onClick={handleResend}
-          disabled={isResending || resent}
-          className="w-full rounded-xl border border-brand-sage/20 px-4 py-2.5 text-sm font-medium text-brand-forest transition-all hover:bg-brand-sage/5 disabled:cursor-not-allowed disabled:opacity-50 dark:border-brand-sage/30 dark:text-brand-cream dark:hover:bg-brand-sage/10"
-        >
-          {resent
-            ? "Link resent! Check your inbox."
-            : isResending
-              ? "Resending..."
-              : "Didn't receive it? Resend"}
-        </button>
+        {/* Resend button — server action, no client-side CSRF */}
+        <form action={formAction}>
+          <input type="hidden" name="email" value={email} />
+          <button
+            type="submit"
+            disabled={isPending || resent}
+            className="w-full rounded-xl border border-brand-sage/20 px-4 py-2.5 text-sm font-medium text-brand-forest transition-all hover:bg-brand-sage/5 disabled:cursor-not-allowed disabled:opacity-50 dark:border-brand-sage/30 dark:text-brand-cream dark:hover:bg-brand-sage/10"
+          >
+            {resent
+              ? "Link resent! Check your inbox."
+              : isPending
+                ? "Resending..."
+                : "Didn't receive it? Resend"}
+          </button>
+        </form>
 
         {/* Back to login */}
         <Link
