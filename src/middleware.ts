@@ -38,13 +38,11 @@ const PUBLIC_PREFIXES = [
 // This middleware deletes legacy prefixed cookies on every request so users
 // don't need to manually clear them.
 // ---------------------------------------------------------------------------
+// ⚠️  Only delete PREFIXED cookies — the unprefixed ones are our ACTIVE cookies!
+// Our auth config uses authjs.csrf-token, authjs.session-token etc (no prefix).
+// The __Host-/__Secure- prefixed versions are stale and cause login loops.
 const STALE_COOKIE_NAMES = [
-  // Old unprefixed cookies from useSecureCookies:false era
-  "authjs.session-token",
-  "authjs.csrf-token",
-  "authjs.callback-url",
-  "authjs.pkce.code_verifier",
-  // Legacy prefixed cookies
+  // Legacy prefixed cookies (these break SSO — see incident 2026-03-15)
   "__Secure-authjs.session-token",
   "__Host-authjs.csrf-token",
   "__Secure-authjs.callback-url",

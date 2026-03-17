@@ -47,9 +47,41 @@ export const authConfig: NextAuthConfig = {
   // canonical URL may differ from the request host (e.g. preview URLs)
   trustHost: true,
 
-  // Let NextAuth auto-configure cookies based on the https protocol of AUTH_URL.
-  // Previously had useSecureCookies:false with manual overrides which broke
-  // PKCE cookie encryption/decryption on the Google OAuth callback.
+  // ⚠️  DO NOT REMOVE THIS COOKIE CONFIG — IT FIXES THE SSO LOGIN LOOP  ⚠️
+  // useSecureCookies:true (the default for https) adds __Host-/__Secure-
+  // prefixes to cookie names. These prefixed cookies are NOT reliably sent
+  // with fetch() POST or native form POST in all browsers, causing
+  // MissingCSRF errors. Setting useSecureCookies:false and manually
+  // specifying each cookie with secure:true gives us HTTPS security
+  // WITHOUT the broken prefixes.
+  // See: SSO Incident 2026-03-15, commits c883670, 876faf2
+  useSecureCookies: false,
+  cookies: {
+    csrfToken: {
+      name: "authjs.csrf-token",
+      options: { httpOnly: true, sameSite: "lax", path: "/", secure: true },
+    },
+    callbackUrl: {
+      name: "authjs.callback-url",
+      options: { httpOnly: true, sameSite: "lax", path: "/", secure: true },
+    },
+    sessionToken: {
+      name: "authjs.session-token",
+      options: { httpOnly: true, sameSite: "lax", path: "/", secure: true },
+    },
+    pkceCodeVerifier: {
+      name: "authjs.pkce.code_verifier",
+      options: { httpOnly: true, sameSite: "lax", path: "/", secure: true },
+    },
+    state: {
+      name: "authjs.state",
+      options: { httpOnly: true, sameSite: "lax", path: "/", secure: true },
+    },
+    nonce: {
+      name: "authjs.nonce",
+      options: { httpOnly: true, sameSite: "lax", path: "/", secure: true },
+    },
+  },
 
   // ---------------------------------------------------------------------------
   // Providers
