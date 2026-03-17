@@ -4,6 +4,11 @@
 
 import { config } from "@/lib/config";
 
+// Force dynamic rendering — auth pages MUST NOT be statically prerendered
+// because each response sets unique CSRF cookies. CDN-caching a prerendered
+// page causes every user to get the same stale CSRF cookie → MissingCSRF.
+export const dynamic = "force-dynamic";
+
 export default function AuthLayout({
   children,
 }: {
