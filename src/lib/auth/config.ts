@@ -91,6 +91,13 @@ export const authConfig: NextAuthConfig = {
       clientId: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
       allowDangerousEmailAccountLinking: true,
+      // Use "state" check instead of "pkce" to avoid PKCE cookie
+      // encryption/decryption salt mismatch between signin and callback.
+      // The PKCE cookie encryption salt is the cookie name — if there's
+      // ANY inconsistency between deployments or cookie configs, the
+      // encrypted PKCE value can't be decrypted → InvalidCheck → error=Configuration.
+      // State check is equally secure for server-side OAuth.
+      checks: ["state"],
     }),
 
     // Apple — only register if credentials are configured
