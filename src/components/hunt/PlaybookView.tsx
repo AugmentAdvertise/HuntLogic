@@ -33,9 +33,9 @@ export function PlaybookView({ playbook, onRefresh, isRefreshing }: PlaybookView
       <EmptyState
         icon={<BookOpen className="h-8 w-8" />}
         title="No Playbook Yet"
-        description="Complete your profile so we can generate your personalized multi-year hunt strategy."
-        actionLabel="Generate Playbook"
-        actionHref="/onboarding"
+        description="Generate your personalized multi-year hunt strategy based on your profile."
+        actionLabel={isRefreshing ? "Generating..." : "Generate Playbook"}
+        onAction={onRefresh}
       />
     );
   }

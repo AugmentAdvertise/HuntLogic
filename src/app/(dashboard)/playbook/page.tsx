@@ -12,6 +12,7 @@ export default function PlaybookPage() {
   const [playbook, setPlaybook] = useState<PlaybookData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [profileComplete] = useState(true);
 
   useEffect(() => {
@@ -36,15 +37,19 @@ export default function PlaybookPage() {
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
+    setError(null);
     try {
       const res = await fetch("/api/v1/playbook", { method: "POST" });
+      const data = await res.json();
       if (res.ok) {
-        const data = await res.json();
         setPlaybook(data.playbook ?? null);
         invalidateCache("/api/v1/playbook");
+      } else {
+        setError(data.message || data.error || "Failed to generate playbook");
       }
     } catch (err) {
       console.error("[playbook] Failed to refresh:", err);
+      setError("Something went wrong. Please try again.");
     } finally {
       setIsRefreshing(false);
     }
@@ -94,6 +99,12 @@ export default function PlaybookPage() {
           Your personalized multi-year hunting strategy
         </p>
       </div>
+
+      {error && (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
+          {error}
+        </div>
+      )}
 
       <PlaybookView
         playbook={playbook}
