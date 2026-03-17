@@ -144,11 +144,22 @@ export default auth((req) => {
 
   // -------------------------------------------------------------------------
   // 4. Not authenticated + protected route → redirect to login
+  //    Also clear the active session cookie — if we're here, it either
+  //    doesn't exist or was encrypted with a stale AUTH_SECRET (JWTSessionError).
+  //    Clearing it prevents an infinite loop where the browser keeps sending
+  //    an undecryptable token on every request.
   // -------------------------------------------------------------------------
   if (!isAuthenticated && !isPublicRoute) {
     const loginUrl = new URL("/login", req.url);
     loginUrl.searchParams.set("callbackUrl", pathname);
     response = NextResponse.redirect(loginUrl);
+    // Force-clear the active session cookie so next login starts fresh
+    response.cookies.set("authjs.session-token", "", {
+      expires: new Date(0),
+      path: "/",
+      secure: true,
+      httpOnly: true,
+    });
     return cleanStaleCookies(req, response);
   }
 
