@@ -1,7 +1,7 @@
 // =============================================================================
-// Chat API — Teddy Concierge via OpenClaw Gateway
+// Chat API — Grizz Concierge via OpenClaw Gateway
 // =============================================================================
-// POST /api/v1/chat — Send message to Teddy, get response
+// POST /api/v1/chat — Send message to Grizz, get response
 //
 // Routes through the OpenClaw gateway when available (local dev),
 // or falls back to direct Anthropic SDK if ANTHROPIC_API_KEY is set.
@@ -243,7 +243,7 @@ async function loadHunterProfileContext(userId: string): Promise<string> {
       "[chat] Failed to load hunter profile context:",
       err instanceof Error ? err.message : String(err)
     );
-    // Non-fatal — Teddy can still respond without profile context
+    // Non-fatal — Grizz can still respond without profile context
     return "";
   }
 }
@@ -262,7 +262,7 @@ async function callOpenClawGateway(message: string): Promise<string> {
     body: JSON.stringify({
       model: "openclaw:teddy",
       messages: [
-        { role: "system", content: `You are Teddy, the AI concierge for HuntLogic. You are knowledgeable, direct, and friendly — like a seasoned outfitter who genuinely wants hunters to fill their tags. Use specific numbers when available. When uncertain, say so clearly.` },
+        { role: "system", content: `You are Grizz, the AI concierge for HuntLogic. You are knowledgeable, direct, and friendly — like a seasoned outfitter who genuinely wants hunters to fill their tags. Use specific numbers when available. When uncertain, say so clearly.` },
         { role: "user", content: message },
       ],
       max_tokens: 4096,
