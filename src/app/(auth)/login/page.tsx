@@ -24,7 +24,10 @@ function LoginForm() {
   // Fetch CSRF token on mount for the native form POST
   const [csrfToken, setCsrfToken] = useState("");
   useEffect(() => {
-    fetch("/api/auth/csrf")
+    fetch("/api/auth/csrf", {
+      credentials: "include",
+      cache: "no-store",
+    })
       .then((r) => r.json())
       .then((d) => setCsrfToken(d.csrfToken))
       .catch(() => {});
