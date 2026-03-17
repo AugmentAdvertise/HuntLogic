@@ -184,25 +184,30 @@ export const authConfig: NextAuthConfig = {
     async jwt({ token, user, trigger }) {
       console.log(`[auth:jwt] trigger=${trigger} user=${user?.email ?? 'none'} sub=${token.sub}`);
       const t = token as Record<string, unknown>;
-      // Re-read from DB on sign-in, explicit update, or while onboarding is incomplete
-      // (once onboardingComplete=true, we stop re-checking on every request)
+
+      // Only query DB on explicit signIn/update triggers (runs on Node.js λ).
+      // DO NOT query DB on regular requests — the middleware runs on Edge (ε)
+      // which cannot connect to PostgreSQL. The DB query throws on Edge,
+      // causing JWTSessionError → infinite login redirect loop.
+      // Values set during signIn persist in the JWT across requests.
       const needsRefresh =
-        user?.email ||
-        trigger === "signIn" ||
-        trigger === "update" ||
-        t.onboardingComplete === false;
+        trigger === "signIn" || trigger === "update";
 
       if (needsRefresh) {
         const email = user?.email ?? (t.email as string | undefined);
         if (email) {
-          const dbUser = await db.query.users.findFirst({
-            where: eq(users.email, email.toLowerCase()),
-          });
+          try {
+            const dbUser = await db.query.users.findFirst({
+              where: eq(users.email, email.toLowerCase()),
+            });
 
-          if (dbUser) {
-            t.userId = dbUser.id;
-            t.onboardingComplete = dbUser.onboardingComplete;
-            t.onboardingStep = dbUser.onboardingStep;
+            if (dbUser) {
+              t.userId = dbUser.id;
+              t.onboardingComplete = dbUser.onboardingComplete;
+              t.onboardingStep = dbUser.onboardingStep;
+            }
+          } catch (err) {
+            console.error("[auth:jwt] DB lookup failed (expected on Edge):", err);
           }
         }
       }
