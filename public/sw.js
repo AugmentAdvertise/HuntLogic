@@ -1,10 +1,10 @@
 // HuntLogic Service Worker — PWA Offline Support
-const CACHE_VERSION = "huntlogic-v2";
+const CACHE_VERSION = "huntlogic-v3";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 const APP_SHELL = [
-  "/", "/login", "/dashboard", "/manifest.json",
+  "/", "/dashboard", "/manifest.json",
   "/favicon.ico", "/apple-touch-icon.png",
   "/icons/icon-192x192.png", "/icons/icon-512x512.png",
 ];
@@ -54,9 +54,11 @@ self.addEventListener("fetch", (event) => {
   // Only handle same-origin GET requests
   if (request.method !== "GET" || url.origin !== self.location.origin) return;
 
-  // Auth API: NEVER intercept — service workers strip Set-Cookie headers
-  // from responses passed through respondWith(), breaking CSRF token flow
+  // Auth routes: NEVER intercept — service workers strip Set-Cookie headers
+  // from responses passed through respondWith(), breaking CSRF token flow.
+  // Auth PAGES must also bypass to prevent serving stale login forms from cache.
   if (url.pathname.startsWith("/api/auth/")) return;
+  if (url.pathname === "/login" || url.pathname === "/signup" || url.pathname === "/verify") return;
 
   // API calls: network-first, fall back to cached response
   if (url.pathname.startsWith("/api/")) {
