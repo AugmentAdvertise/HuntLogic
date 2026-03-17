@@ -25,7 +25,7 @@ import { config } from "@/lib/config";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-const GATEWAY_URL = process.env.OPENCLAW_GATEWAY_URL || "http://127.0.0.1:18789";
+const GATEWAY_URL = process.env.OPENCLAW_GATEWAY_URL || "https://huntlogic.mysupertool.app";
 const GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN || "";
 
 export async function POST(request: NextRequest) {
@@ -253,15 +253,19 @@ async function loadHunterProfileContext(userId: string): Promise<string> {
 // =============================================================================
 
 async function callOpenClawGateway(message: string): Promise<string> {
-  const res = await fetch(`${GATEWAY_URL}/api/agent`, {
+  const res = await fetch(`${GATEWAY_URL}/v1/chat/completions`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       ...(GATEWAY_TOKEN ? { Authorization: `Bearer ${GATEWAY_TOKEN}` } : {}),
     },
     body: JSON.stringify({
-      agent: "teddy",
-      message,
+      model: "openclaw:teddy",
+      messages: [
+        { role: "system", content: `You are Teddy, the AI concierge for HuntLogic. You are knowledgeable, direct, and friendly — like a seasoned outfitter who genuinely wants hunters to fill their tags. Use specific numbers when available. When uncertain, say so clearly.` },
+        { role: "user", content: message },
+      ],
+      max_tokens: 4096,
     }),
     signal: AbortSignal.timeout(55000),
   });
@@ -271,13 +275,7 @@ async function callOpenClawGateway(message: string): Promise<string> {
   }
 
   const data = await res.json();
-
-  // OpenClaw gateway response format
-  const text =
-    data?.result?.payloads?.[0]?.text ||
-    data?.result?.text ||
-    data?.text ||
-    "";
+  const text = data?.choices?.[0]?.message?.content || "";
 
   if (!text) {
     throw new Error("Empty response from gateway");
