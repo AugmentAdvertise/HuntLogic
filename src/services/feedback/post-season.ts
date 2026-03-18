@@ -12,9 +12,8 @@ import {
   recommendations,
   states,
   species,
-  users,
 } from "@/lib/db/schema";
-import { eq, and, between, sql, isNotNull } from "drizzle-orm";
+import { eq, and, isNotNull, sql } from "drizzle-orm";
 import { processRecommendationFeedback } from "@/services/intelligence/feedback-engine";
 import { createNotification } from "@/services/notifications";
 
@@ -87,6 +86,10 @@ export async function submitHarvestFeedback(
       notes: feedback.notes,
     })
     .returning({ id: harvestHistory.id });
+
+  if (!harvest) {
+    throw new Error("Failed to insert harvest record");
+  }
 
   let feedbackProcessed = false;
 
@@ -167,7 +170,7 @@ async function processBehavioralSignals(
       )
       .limit(1);
 
-    if (!existing.length || existing[0].source !== "user") {
+    if (!existing.length || existing[0]?.source !== "user") {
       await db
         .insert(hunterPreferences)
         .values({
@@ -222,7 +225,8 @@ export async function scanEndedSeasons(): Promise<number> {
     .where(
       and(
         isNotNull(seasons.endDate),
-        between(seasons.endDate, weekAgoStr, todayStr)
+        sql`${seasons.endDate} >= ${weekAgoStr}`,
+        sql`${seasons.endDate} <= ${todayStr}`
       )
     );
 

@@ -7,8 +7,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { deadlines, users, userActions, hunterPreferences, pointHoldings } from "@/lib/db/schema";
-import { eq, and, sql, inArray, gte, lte } from "drizzle-orm";
+import { deadlines, users, userActions } from "@/lib/db/schema";
+import { eq, and, sql } from "drizzle-orm";
 
 // =============================================================================
 // GET /api/cron/deadlines — Scan upcoming deadlines and generate user actions

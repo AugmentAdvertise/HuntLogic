@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
           { status: 404 }
         );
       }
-      stateId = stateRow[0].id;
+      stateId = stateRow[0]?.id;
     }
 
     // Resolve species slug to speciesId
@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
           { status: 404 }
         );
       }
-      speciesId = speciesRow[0].id;
+      speciesId = speciesRow[0]?.id;
     }
 
     // Build dynamic where conditions
@@ -77,7 +77,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (upcoming) {
-      const today = new Date().toISOString().split("T")[0];
+      const today = new Date().toISOString().split("T")[0] ?? new Date().toISOString().slice(0, 10);
       conditions.push(gte(deadlines.deadlineDate, today));
     }
 
