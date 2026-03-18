@@ -1,14 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { documents } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 
 export async function GET(request: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  // Public endpoint — map boundaries are publicly viewable
 
   const stateCode = request.nextUrl.searchParams.get("state");
 
@@ -30,7 +26,7 @@ export async function GET(request: NextRequest) {
 
     if (cached.length > 0) {
       const boundaries = cached.map((c) => ({
-        stateCode: c.title.replace("boundary_", ""),
+        stateCode: (c.title ?? "").replace("boundary_", ""),
         geojson: c.content ? JSON.parse(c.content) : null,
       }));
 

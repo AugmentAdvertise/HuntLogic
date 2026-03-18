@@ -47,42 +47,25 @@ export async function GET() {
     };
   }
 
-  // Check Redis
+  // Check Redis — use ioredis so auth is handled automatically via the URL
   try {
     const redisUrl = config.redis.url;
     if (!redisUrl) {
       health.checks.redis = { status: "not_configured" };
     } else {
       const redisStart = Date.now();
-      // Attempt a lightweight TCP connection check to Redis
-      const url = new URL(redisUrl);
-      const host = url.hostname || "localhost";
-      const port = parseInt(url.port || "6379", 10);
-
-      await new Promise<void>((resolve, reject) => {
-        const { createConnection } = require("net");
-        const socket = createConnection({ host, port, timeout: 2000 }, () => {
-          // Send PING command in Redis protocol
-          socket.write("*1\r\n$4\r\nPING\r\n");
-        });
-        socket.on("data", (data: Buffer) => {
-          const response = data.toString();
-          socket.destroy();
-          if (response.includes("PONG")) {
-            resolve();
-          } else {
-            reject(new Error(`Unexpected Redis response: ${response}`));
-          }
-        });
-        socket.on("timeout", () => {
-          socket.destroy();
-          reject(new Error("Redis connection timed out"));
-        });
-        socket.on("error", (err: Error) => {
-          socket.destroy();
-          reject(err);
-        });
+      const { default: Redis } = await import("ioredis");
+      const client = new Redis(redisUrl, {
+        connectTimeout: 3000,
+        commandTimeout: 2000,
+        maxRetriesPerRequest: 0,
+        lazyConnect: true,
+        enableOfflineQueue: false,
       });
+
+      await client.connect();
+      await client.ping();
+      await client.quit();
 
       health.checks.redis = {
         status: "healthy",

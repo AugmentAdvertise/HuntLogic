@@ -1,15 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { outfitters } from "@/lib/db/schema";
-import { eq, and, desc, gte, asc, sql } from "drizzle-orm";
+import { eq, and, desc, gte, asc } from "drizzle-orm";
 
 export async function GET(request: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+    // Public browse endpoint
   const params = request.nextUrl.searchParams;
   const stateCode = params.get("state");
   const species = params.get("species");
