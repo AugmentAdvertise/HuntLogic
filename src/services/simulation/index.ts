@@ -246,6 +246,9 @@ async function getSimulationContext(
     }
 
     const latestOdds = recentOdds[0];
+    if (!latestOdds) {
+      return getDefaultContext();
+    }
 
     return {
       annualPointCreepRate: Math.max(0, annualPointCreepRate),

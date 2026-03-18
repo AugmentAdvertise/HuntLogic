@@ -2,8 +2,6 @@
 // Drought Data Service — US Drought Monitor integration
 // =============================================================================
 
-const LOG_PREFIX = "[drought]";
-
 export interface DroughtData {
   stateCode: string;
   level: "none" | "D0" | "D1" | "D2" | "D3" | "D4";

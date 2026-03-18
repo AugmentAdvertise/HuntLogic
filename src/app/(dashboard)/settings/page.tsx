@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Bell, Globe, User, Shield, Download, Check, Link2, ChevronRight } from "lucide-react";
+import { Bell, Globe, User, Shield, Download, Check, Link2, ChevronRight, Trash2 } from "lucide-react";
 import { apiClient } from "@/lib/api/client";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 interface NotifPrefs {
   emailEnabled: boolean;
@@ -33,6 +34,7 @@ const TIMEZONE_OPTIONS = [
 ];
 
 export default function SettingsPage() {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [notifPrefs, setNotifPrefs] = useState<NotifPrefs>({
@@ -186,11 +188,46 @@ export default function SettingsPage() {
       {/* Data & Privacy */}
       <SettingsCard icon={Shield} title="Data & Privacy">
         <div className="space-y-3">
-          <button className="flex min-h-[44px] w-full items-center gap-3 rounded-[10px] border border-brand-sage/20 px-4 py-3 text-sm text-brand-bark transition-colors hover:bg-brand-sage/5 dark:text-brand-cream dark:hover:bg-brand-sage/10">
+          <button
+            onClick={async () => {
+              try {
+                const res = await fetch("/api/v1/profile/export");
+                if (!res.ok) throw new Error("Export failed");
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `huntlogic-export-${new Date().toISOString().slice(0, 10)}.json`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                URL.revokeObjectURL(url);
+              } catch (err) {
+                console.error("[settings] Export failed:", err);
+              }
+            }}
+            className="flex min-h-[44px] w-full items-center gap-3 rounded-[10px] border border-brand-sage/20 px-4 py-3 text-sm text-brand-bark transition-colors hover:bg-brand-sage/5 dark:text-brand-cream dark:hover:bg-brand-sage/10"
+          >
             <Download className="h-4 w-4 text-brand-sage" />
             Export My Data
           </button>
-          <button className="flex min-h-[44px] w-full items-center gap-3 rounded-[10px] border border-red-300 px-4 py-3 text-sm text-red-600 transition-colors hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950">
+          <button
+            onClick={async () => {
+              const confirmed = window.confirm(
+                "Are you sure you want to delete your account? This action is permanent and cannot be undone."
+              );
+              if (!confirmed) return;
+              try {
+                const res = await fetch("/api/v1/profile/delete", { method: "DELETE" });
+                if (!res.ok) throw new Error("Delete failed");
+                router.push("/login");
+              } catch (err) {
+                console.error("[settings] Delete failed:", err);
+              }
+            }}
+            className="flex min-h-[44px] w-full items-center gap-3 rounded-[10px] border border-red-300 px-4 py-3 text-sm text-red-500 transition-colors hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950"
+          >
+            <Trash2 className="h-4 w-4" />
             Delete Account
           </button>
         </div>

@@ -143,7 +143,7 @@ export async function fetchWeather(
 
 function generateHuntingConditions(
   weather: WeatherData,
-  stateCode: string
+  _stateCode: string
 ): string {
   const temp = weather.current.temperature;
   const wind = weather.current.windSpeed;

@@ -4,7 +4,7 @@
 
 import { db } from "@/lib/db";
 import { appConfig } from "@/lib/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 // =============================================================================
 // Types

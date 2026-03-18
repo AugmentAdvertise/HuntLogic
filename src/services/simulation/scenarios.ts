@@ -31,7 +31,7 @@ export function compareScenarios(
   // Find best by expected draw year (earliest)
   let bestBySpeed = 0;
   for (let i = 1; i < results.length; i++) {
-    if (results[i].expectedDrawYear < results[bestBySpeed].expectedDrawYear) {
+    if (results[i]!.expectedDrawYear < results[bestBySpeed]!.expectedDrawYear) {
       bestBySpeed = i;
     }
   }
@@ -39,7 +39,7 @@ export function compareScenarios(
   // Find best by cost (cheapest)
   let bestByCost = 0;
   for (let i = 1; i < results.length; i++) {
-    if (results[i].expectedTotalCost < results[bestByCost].expectedTotalCost) {
+    if (results[i]!.expectedTotalCost < results[bestByCost]!.expectedTotalCost) {
       bestByCost = i;
     }
   }
@@ -53,18 +53,18 @@ export function compareScenarios(
     return fiveYear?.cumulativeProbability ?? 0;
   };
   for (let i = 1; i < results.length; i++) {
-    if (get5YearProb(results[i]) > get5YearProb(results[bestByOdds])) {
+    if (get5YearProb(results[i]!) > get5YearProb(results[bestByOdds]!)) {
       bestByOdds = i;
     }
   }
 
   // Generate summary
-  const best = results[bestBySpeed];
+  const best = results[bestBySpeed]!;
   const summary =
     results.length === 1
       ? `Expected draw in ${best.expectedDrawYear} with ~$${best.expectedTotalCost} total investment.`
       : `Scenario ${bestBySpeed + 1} (${best.scenario.stateCode} ${best.scenario.speciesSlug}) draws fastest by ${best.expectedDrawYear}. ` +
-        `Scenario ${bestByCost + 1} is cheapest at ~$${results[bestByCost].expectedTotalCost}.`;
+        `Scenario ${bestByCost + 1} is cheapest at ~$${results[bestByCost]!.expectedTotalCost}.`;
 
   return {
     results,

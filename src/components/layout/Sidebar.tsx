@@ -41,6 +41,7 @@ const mainNavItems = [
 
 const bottomNavItems = [
   { href: "/profile", label: "Profile", icon: User },
+  { href: "/profile/strategy", label: "Annual Strategy", icon: CalendarDays },
   { href: "/profile/harvest", label: "Harvest Log", icon: Target },
   { href: "/settings", label: "Settings", icon: Settings },
 ];

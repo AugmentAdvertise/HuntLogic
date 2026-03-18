@@ -30,6 +30,7 @@ const routeTitles: Record<string, string> = {
   "/profile": "Profile",
   "/profile/points": "Preference Points",
   "/profile/preferences": "Preferences",
+  "/profile/strategy": "Annual Strategy",
   "/settings": "Settings",
   "/profile/harvest": "Harvest Log",
   "/simulation": "Simulator",

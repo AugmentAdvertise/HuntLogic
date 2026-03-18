@@ -9,7 +9,7 @@ let stripeClient: Stripe | null = null;
 export function getStripeClient(): Stripe {
   if (!stripeClient) {
     stripeClient = new Stripe(config.stripe.secretKey(), {
-      apiVersion: "2025-04-30.basil",
+      apiVersion: "2026-02-25.clover",
       typescript: true,
     });
   }
