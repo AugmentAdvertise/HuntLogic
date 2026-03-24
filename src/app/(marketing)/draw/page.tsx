@@ -17,6 +17,7 @@ import {
   MapPin,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getBestStatesForSpecies, getSpeciesStateContext } from "@/lib/data/state-species-intelligence";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -92,6 +93,132 @@ const MOTIVATIONS: {
 ];
 
 const TOTAL_STEPS = 6;
+
+// ---------------------------------------------------------------------------
+// Species → State reputation data (curated western hunting community knowledge)
+// ---------------------------------------------------------------------------
+
+interface SpeciesReputation {
+  topStates: string[];
+  reason: string;
+  drawDifficulty: "easy" | "moderate" | "hard" | "extremely_hard";
+  stateNotes: Record<string, string>;
+}
+
+const STATE_SPECIES_REPUTATION: Record<string, SpeciesReputation> = {
+  elk: {
+    topStates: ["CO", "ID", "MT", "WY", "AZ", "NM", "UT"],
+    reason:
+      "Colorado offers the most elk tags in the West. Idaho and Montana are known for high-probability OTC and draw tags. Wyoming has premium units but point-heavy. Arizona and New Mexico produce massive bulls but draw odds are extremely low.",
+    drawDifficulty: "moderate",
+    stateNotes: {
+      CO: "Most tags issued in the West — best NR probability overall",
+      ID: "Large OTC archery areas + quality draw units",
+      MT: "General OTC season + quality limited-entry draws",
+      WY: "Premium units but typically requires 5-10+ points for top areas",
+      AZ: "World-class bulls, but 10-20+ year draws for premium units",
+      NM: "Trophy quality rivals AZ, slightly better NR odds",
+      UT: "High success rates, quality animals, moderate point build",
+    },
+  },
+  mule_deer: {
+    topStates: ["CO", "WY", "UT", "ID", "NV", "AZ", "MT"],
+    reason:
+      "Colorado has abundant mule deer with reasonable draw odds. Wyoming's high-country bucks are legendary. Utah produces giant deer but point requirements are building. Nevada has consistent herds across vast desert terrain.",
+    drawDifficulty: "moderate",
+    stateNotes: {
+      CO: "Good NR odds, over 300,000 deer — diverse terrain from plains to alpine",
+      WY: "Famous for large-framed bucks, most units draw in 1-5 years",
+      UT: "Trophy quality is exceptional; point creep is real in premium units",
+      ID: "Underrated — good OTC units + solid draw opportunities",
+      NV: "Known for desert bucks, many units with reasonable odds",
+      AZ: "Trophy giants but 5-15 year draws for premium units",
+      MT: "Wide open spaces, quality bucks, often underrated by NR hunters",
+    },
+  },
+  bighorn_sheep: {
+    topStates: ["NV", "WY", "CO", "ID", "MT", "AZ", "UT"],
+    reason:
+      "Nevada is the gold standard for bighorn sheep — more NR tags than any other state. Wyoming, Colorado, and Idaho have solid programs. Arizona and Utah produce world-class rams but draws take decades.",
+    drawDifficulty: "extremely_hard",
+    stateNotes: {
+      NV: "#1 for NR sheep tags — most liberal tag allocation in the West",
+      WY: "Quality rams, somewhat better odds than most states",
+      CO: "Growing herds, consistent draw program",
+      ID: "Quality desert and Rocky Mountain bighorns",
+      MT: "Rocky Mountain bighorns, competitive draw",
+      AZ: "World record rams but 20-30 year average wait",
+      UT: "Trophy quality rams, decade-long point builds for top units",
+    },
+  },
+  pronghorn: {
+    topStates: ["WY", "MT", "CO", "ID", "NV", "AZ"],
+    reason:
+      "Wyoming has the largest pronghorn population in North America — most tags, best access. Montana and Colorado offer good draw odds. Nevada has solid desert antelope populations.",
+    drawDifficulty: "easy",
+    stateNotes: {
+      WY: "Home to 40%+ of North America's pronghorn — most tags issued",
+      MT: "Quality bucks, reasonable draw odds, vast prairie habitat",
+      CO: "Good NR draw odds, quality animals on eastern plains",
+      ID: "Smaller population but quality bucks, low applicant pressure",
+      NV: "Desert antelope, reasonable odds, often overlooked",
+      AZ: "Quality animals but tougher NR draw odds",
+    },
+  },
+  moose: {
+    topStates: ["WY", "ID", "MT", "CO", "UT"],
+    reason:
+      "Wyoming and Idaho have the highest NR moose tag allocations in the lower 48. Montana has quality bulls. Colorado and Utah are rare draws but produce large bulls.",
+    drawDifficulty: "extremely_hard",
+    stateNotes: {
+      WY: "Most moose tags in the lower 48 for NR hunters",
+      ID: "Quality Shiras moose, decent NR allocations vs other states",
+      MT: "Good bulls, competitive draw",
+      CO: "Very limited tags, long point builds",
+      UT: "Exceptional Shiras bulls but very difficult draw",
+    },
+  },
+  mountain_goat: {
+    topStates: ["WY", "ID", "MT", "CO", "WA"],
+    reason:
+      "Mountain goat tags are extremely limited everywhere. Wyoming and Idaho offer the best NR odds. All states are once-in-a-lifetime draws in practice.",
+    drawDifficulty: "extremely_hard",
+    stateNotes: {
+      WY: "Best NR odds for mountain goat in the West",
+      ID: "Quality billies, limited tags",
+      MT: "Good quality, competitive draw",
+      CO: "Very limited, long point builds",
+      WA: "Quality animals, good NR program relative to other states",
+    },
+  },
+  black_bear: {
+    topStates: ["CO", "ID", "MT", "WY", "AZ", "NV"],
+    reason:
+      "Colorado has OTC bear tags — no draw required. Idaho and Montana have large populations with OTC or easy-draw tags. Most western states offer reasonable bear opportunities.",
+    drawDifficulty: "easy",
+    stateNotes: {
+      CO: "OTC tags — no draw needed, large bear population",
+      ID: "Large population, OTC spring and fall seasons",
+      MT: "Good numbers, OTC in most zones",
+      WY: "Draw required but odds are reasonable",
+      AZ: "Good quality bears, draw system",
+      NV: "Limited tags but some quality bears in mountain ranges",
+    },
+  },
+  turkey: {
+    topStates: ["CO", "WY", "MT", "AZ", "NM"],
+    reason:
+      "Colorado has large Merriam's populations with good draw odds. Many western states have solid turkey opportunities with relatively easy draws compared to big game.",
+    drawDifficulty: "easy",
+    stateNotes: {
+      CO: "Merriam's turkeys with good NR odds",
+      WY: "Good Merriam's populations in Black Hills and mountain foothills",
+      MT: "Quality birds, reasonable draw",
+      AZ: "Gould's and Merriam's, good draw odds in most units",
+      NM: "Merriam's and Gould's, quality birds",
+    },
+  },
+};
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -170,12 +297,18 @@ function StepStates({
   stateList,
   selected,
   toggle,
-  selectAll,
+  selectSmart,
+  suggestedReasons,
+  buttonLabel,
+  speciesContext,
 }: {
   stateList: StateOption[];
   selected: Set<string>;
   toggle: (code: string) => void;
-  selectAll: () => void;
+  selectSmart: () => void;
+  suggestedReasons: Map<string, string>;
+  buttonLabel: string;
+  speciesContext?: string;
 }) {
   const drawStates = stateList.filter((s) => s.hasDrawSystem);
   return (
@@ -183,31 +316,46 @@ function StepStates({
       <h2 className="text-2xl font-bold text-brand-bark dark:text-brand-cream md:text-3xl">
         Which states?
       </h2>
-      <p className="mt-2 text-brand-sage">
-        Where would you like to apply?
-      </p>
+      {speciesContext ? (
+        <p className="mt-2 text-sm text-brand-forest/80 dark:text-brand-sage/90 leading-relaxed bg-brand-forest/5 dark:bg-brand-sage/10 rounded-lg px-3 py-2 border border-brand-forest/10 dark:border-brand-sage/20">
+          <Sparkles className="inline h-3.5 w-3.5 mr-1 -mt-0.5 text-brand-forest dark:text-brand-sage" />
+          {speciesContext}
+        </p>
+      ) : (
+        <p className="mt-2 text-brand-sage">Where would you like to apply?</p>
+      )}
       <button
-        onClick={selectAll}
+        onClick={selectSmart}
         className="mt-4 inline-flex items-center gap-1.5 rounded-full border border-brand-forest/30 bg-brand-forest/5 px-4 py-2 text-sm font-medium text-brand-forest transition-colors hover:bg-brand-forest/10 dark:border-brand-sage/30 dark:bg-brand-sage/10 dark:text-brand-sage dark:hover:bg-brand-sage/20"
       >
         <Sparkles className="h-4 w-4" />
-        Show me the best options
+        {buttonLabel}
       </button>
       <div className="mt-4 flex flex-wrap gap-3">
-        {drawStates.map((s) => (
-          <button
-            key={s.code}
-            onClick={() => toggle(s.code)}
-            className={cn(
-              "rounded-full border px-4 py-2 text-sm font-medium transition-all",
-              selected.has(s.code)
-                ? "border-brand-forest bg-brand-forest text-white dark:border-brand-sage dark:bg-brand-sage"
-                : "border-brand-sage/20 text-brand-bark hover:border-brand-forest hover:bg-brand-forest/5 dark:text-brand-cream dark:hover:border-brand-sage"
-            )}
-          >
-            {s.name}
-          </button>
-        ))}
+        {drawStates.map((s) => {
+          const reason = suggestedReasons.get(s.code);
+          const isSelected = selected.has(s.code);
+          return (
+            <div key={s.code} className="flex flex-col items-center">
+              <button
+                onClick={() => toggle(s.code)}
+                className={cn(
+                  "rounded-full border px-4 py-2 text-sm font-medium transition-all",
+                  isSelected
+                    ? "border-brand-forest bg-brand-forest text-white dark:border-brand-sage dark:bg-brand-sage"
+                    : "border-brand-sage/20 text-brand-bark hover:border-brand-forest hover:bg-brand-forest/5 dark:text-brand-cream dark:hover:border-brand-sage"
+                )}
+              >
+                {s.name}
+              </button>
+              {reason && isSelected && (
+                <span className="mt-1 max-w-[120px] text-center text-[10px] italic leading-tight text-brand-forest/70 dark:text-brand-sage/70">
+                  {reason}
+                </span>
+              )}
+            </div>
+          );
+        })}
       </div>
       {selected.size === 0 && (
         <p className="mt-4 text-sm text-brand-sage/60">
@@ -559,6 +707,11 @@ export default function DrawSimulatorPage() {
   const [points, setPoints] = useState<Record<string, number>>({});
   const [motivation, setMotivation] = useState<Motivation | null>(null);
 
+  // Smart suggestion reasons (state code → reason string)
+  const [suggestedReasons, setSuggestedReasons] = useState<Map<string, string>>(
+    new Map()
+  );
+
   // Results
   const [results, setResults] = useState<SimulatorResults | null>(null);
   const [resultsLoading, setResultsLoading] = useState(false);
@@ -594,13 +747,49 @@ export default function DrawSimulatorPage() {
       else next.add(code);
       return next;
     });
+    // Clear the reason for a manually toggled state
+    setSuggestedReasons((prev) => {
+      if (!prev.has(code)) return prev;
+      const next = new Map(prev);
+      next.delete(code);
+      return next;
+    });
   }, []);
 
-  const selectAllStates = useCallback(() => {
-    setSelectedStates(
-      new Set(stateList.filter((s) => s.hasDrawSystem).map((s) => s.code))
-    );
-  }, [stateList]);
+  const selectSmartStates = useCallback(() => {
+    const slugs = [...selectedSpecies];
+    if (slugs.length === 0) {
+      // No species selected — select all draw states (original fallback)
+      setSelectedStates(
+        new Set(stateList.filter((s) => s.hasDrawSystem).map((s) => s.code))
+      );
+      setSuggestedReasons(new Map());
+      return;
+    }
+
+    const ranked = getBestStatesForSpecies(slugs);
+    const suggestedCodes = new Set<string>();
+    const reasons = new Map<string, string>();
+
+    // Select tier-1 and tier-2 states that exist in our state list
+    // For exclusive species (caribou, javelina) this naturally constrains to AK/AZ only
+    for (const { code, tier, reasons: stateReasons } of ranked) {
+      if (tier <= 2 && stateList.some((s) => s.code === code)) {
+        suggestedCodes.add(code);
+        // Use first reason as the tooltip (trim species prefix for display)
+        const firstReason = stateReasons[0];
+        if (firstReason) {
+          const display = firstReason.includes(": ")
+            ? firstReason.split(": ").slice(1).join(": ")
+            : firstReason;
+          reasons.set(code, display);
+        }
+      }
+    }
+
+    setSelectedStates(suggestedCodes);
+    setSuggestedReasons(reasons);
+  }, [selectedSpecies, stateList]);
 
   const canNext = (): boolean => {
     switch (step) {
@@ -708,7 +897,14 @@ export default function DrawSimulatorPage() {
               stateList={stateList}
               selected={selectedStates}
               toggle={toggleState}
-              selectAll={selectAllStates}
+              selectSmart={selectSmartStates}
+              suggestedReasons={suggestedReasons}
+              speciesContext={getSpeciesStateContext([...selectedSpecies])}
+              buttonLabel={
+                selectedSpecies.size > 0
+                  ? `✦ AI Pick: Best States`
+                  : "Show me the best options"
+              }
             />
           )}
           {step === 3 && <StepWeapon selected={weapon} onSelect={setWeapon} />}
