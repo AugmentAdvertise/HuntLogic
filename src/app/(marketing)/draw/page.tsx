@@ -49,6 +49,7 @@ interface DrawResult {
   year: number | null;
   totalApplicants: number | null;
   totalTags: number | null;
+  residentType?: string;
 }
 
 interface SimulatorResults {
@@ -279,6 +280,20 @@ function StepWeapon({
   );
 }
 
+// US states for home state selector
+const US_STATES = [
+  ["AL","Alabama"],["AK","Alaska"],["AZ","Arizona"],["AR","Arkansas"],["CA","California"],
+  ["CO","Colorado"],["CT","Connecticut"],["DE","Delaware"],["FL","Florida"],["GA","Georgia"],
+  ["HI","Hawaii"],["ID","Idaho"],["IL","Illinois"],["IN","Indiana"],["IA","Iowa"],
+  ["KS","Kansas"],["KY","Kentucky"],["LA","Louisiana"],["ME","Maine"],["MD","Maryland"],
+  ["MA","Massachusetts"],["MI","Michigan"],["MN","Minnesota"],["MS","Mississippi"],["MO","Missouri"],
+  ["MT","Montana"],["NE","Nebraska"],["NV","Nevada"],["NH","New Hampshire"],["NJ","New Jersey"],
+  ["NM","New Mexico"],["NY","New York"],["NC","North Carolina"],["ND","North Dakota"],["OH","Ohio"],
+  ["OK","Oklahoma"],["OR","Oregon"],["PA","Pennsylvania"],["RI","Rhode Island"],["SC","South Carolina"],
+  ["SD","South Dakota"],["TN","Tennessee"],["TX","Texas"],["UT","Utah"],["VT","Vermont"],
+  ["VA","Virginia"],["WA","Washington"],["WV","West Virginia"],["WI","Wisconsin"],["WY","Wyoming"],
+] as const;
+
 function StepPoints({
   hasPoints,
   setHasPoints,
@@ -286,6 +301,8 @@ function StepPoints({
   speciesList,
   points,
   setPoints,
+  homeState,
+  setHomeState,
 }: {
   hasPoints: boolean | null;
   setHasPoints: (v: boolean) => void;
@@ -293,17 +310,46 @@ function StepPoints({
   speciesList: SpeciesOption[];
   points: Record<string, number>;
   setPoints: (p: Record<string, number>) => void;
+  homeState: string;
+  setHomeState: (s: string) => void;
 }) {
   const speciesMap = new Map(speciesList.map((s) => [s.slug, s.name]));
 
   return (
     <div>
       <h2 className="text-2xl font-bold text-brand-bark dark:text-brand-cream md:text-3xl">
-        Do you have any points?
+        A little about you
       </h2>
       <p className="mt-2 text-brand-sage">
-        Bonus or preference points from previous applications.
+        Your state of residence affects draw odds — residents often have different odds than nonresidents.
       </p>
+
+      {/* Home state */}
+      <div className="mt-6">
+        <label className="block text-sm font-semibold text-brand-bark dark:text-brand-cream mb-2">
+          Where do you live?
+        </label>
+        <select
+          value={homeState}
+          onChange={(e) => setHomeState(e.target.value)}
+          className="w-full max-w-xs rounded-xl border border-brand-sage/20 bg-white px-4 py-2.5 text-sm text-brand-bark dark:bg-brand-bark dark:text-brand-cream dark:border-brand-sage/30 focus:border-brand-forest focus:outline-none focus:ring-1 focus:ring-brand-forest"
+        >
+          <option value="">Select your home state...</option>
+          {US_STATES.map(([code, name]) => (
+            <option key={code} value={code}>{name}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* Points divider */}
+      <div className="mt-8 border-t border-brand-sage/10 pt-6 dark:border-brand-sage/20">
+        <h3 className="text-lg font-semibold text-brand-bark dark:text-brand-cream">
+          Do you have any points?
+        </h3>
+        <p className="mt-1 text-sm text-brand-sage">
+          Bonus or preference points from previous applications.
+        </p>
+      </div>
       <div className="mt-6 flex gap-3">
         {([true, false] as const).map((val) => (
           <button
@@ -476,6 +522,16 @@ function StepResults({
                   </p>
                   <p className="text-sm text-brand-sage">
                     Unit: {r.unit} {r.year ? `(${r.year})` : ""}
+                    {r.residentType && (
+                      <span className={cn(
+                        "ml-2 rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase",
+                        r.residentType === "resident"
+                          ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                          : "bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400"
+                      )}>
+                        {r.residentType === "resident" ? "Resident" : "NR"}
+                      </span>
+                    )}
                   </p>
                 </div>
               </div>
@@ -585,6 +641,7 @@ export default function DrawSimulatorPage() {
   const [weapon, setWeapon] = useState("any");
   const [hasPoints, setHasPoints] = useState<boolean | null>(null);
   const [points, setPoints] = useState<Record<string, number>>({});
+  const [homeState, setHomeState] = useState<string>("");
   const [motivation, setMotivation] = useState<Motivation | null>(null);
 
   // Smart suggestion reasons (state code → reason string)
@@ -705,6 +762,7 @@ export default function DrawSimulatorPage() {
           weapon,
           motivation,
           points,
+          homeState: homeState || null,
         }),
       });
       const data = (await res.json()) as SimulatorResults;
@@ -796,6 +854,8 @@ export default function DrawSimulatorPage() {
               speciesList={speciesList}
               points={points}
               setPoints={setPoints}
+              homeState={homeState}
+              setHomeState={setHomeState}
             />
           )}
           {step === 5 && (

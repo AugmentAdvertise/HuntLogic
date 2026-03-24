@@ -9,6 +9,7 @@ interface SimulatorRequest {
   weapon: string;
   motivation: string;
   points: Record<string, number>;
+  homeState?: string | null;
 }
 
 export async function POST(req: NextRequest) {
@@ -18,6 +19,7 @@ export async function POST(req: NextRequest) {
     const speciesSlugs = body.species ?? [];
     const stateCodes = body.states ?? [];
     const weapon = body.weapon ?? "any";
+    const homeState = body.homeState ?? null;
 
     if (speciesSlugs.length === 0 || stateCodes.length === 0) {
       return NextResponse.json(
@@ -26,18 +28,21 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Build where conditions
+    // Determine resident type per target state:
+    // If the user's home state matches the target state → resident, else → nonresident.
+    // We run one query per residency type, or use a single query and filter per state.
+    // Simple approach: query both resident_types, then in JS pick the right row per state.
     const conditions = [
       inArray(species.slug, speciesSlugs),
       inArray(states.code, stateCodes),
-      eq(drawOdds.residentType, "nonresident"),
+      // Include both — we'll filter in JS based on homeState
     ];
 
     if (weapon !== "any") {
       conditions.push(eq(drawOdds.weaponType, weapon));
     }
 
-    // Get the most recent year of data per state+species combo
+    // Fetch both resident and nonresident rows — we'll pick the right one per state in JS
     const results = await db
       .select({
         state: states.code,
@@ -50,6 +55,7 @@ export async function POST(req: NextRequest) {
         year: drawOdds.year,
         totalApplicants: drawOdds.totalApplicants,
         totalTags: drawOdds.totalTags,
+        residentType: drawOdds.residentType,
       })
       .from(drawOdds)
       .innerJoin(states, eq(drawOdds.stateId, states.id))
@@ -57,20 +63,45 @@ export async function POST(req: NextRequest) {
       .leftJoin(huntUnits, eq(drawOdds.huntUnitId, huntUnits.id))
       .where(and(...conditions))
       .orderBy(desc(drawOdds.drawRate))
-      .limit(50);
+      .limit(200);
 
-    // Deduplicate: keep only the most recent year per state+species+unit
-    const seen = new Set<string>();
-    const deduped: typeof results = [];
+    // For each state+species+unit combo, pick the correct residency row:
+    // - If homeState matches this target state → prefer "resident"
+    // - Otherwise → prefer "nonresident"
+    // Fall back to whichever row exists if the preferred type isn't available.
+    type ResultRow = typeof results[number];
+    const byKey = new Map<string, { resident?: ResultRow; nonresident?: ResultRow }>();
+
     for (const row of results) {
       const key = `${row.state ?? ""}-${row.species ?? ""}-${row.unit ?? ""}`;
-      if (!seen.has(key)) {
-        seen.add(key);
-        deduped.push(row);
+      const entry = byKey.get(key) ?? {};
+      if (row.residentType === "resident") {
+        entry.resident = row;
+      } else {
+        entry.nonresident = row;
       }
+      byKey.set(key, entry);
     }
 
+    const deduped: ResultRow[] = [];
+    for (const [, entry] of byKey) {
+      const stateCode = entry.resident?.state ?? entry.nonresident?.state ?? "";
+      const isResident = homeState !== null && homeState.toUpperCase() === stateCode.toUpperCase();
+      const preferred = isResident
+        ? (entry.resident ?? entry.nonresident)
+        : (entry.nonresident ?? entry.resident);
+      if (preferred) deduped.push(preferred);
+    }
+
+    // Sort by draw rate descending
+    deduped.sort((a, b) => (b.drawRate ?? 0) - (a.drawRate ?? 0));
+
     const top = deduped.slice(0, 10);
+    const residentLabel = (row: ResultRow) => {
+      const stateCode = row.state ?? "";
+      const isRes = homeState !== null && homeState.toUpperCase() === stateCode.toUpperCase();
+      return isRes ? "resident" : "nonresident";
+    };
 
     return NextResponse.json({
       results: top.map((r) => ({
@@ -84,8 +115,10 @@ export async function POST(req: NextRequest) {
         year: r.year ?? null,
         totalApplicants: r.totalApplicants ?? null,
         totalTags: r.totalTags ?? null,
+        residentType: residentLabel(r),
       })),
       total: deduped.length,
+      homeState: homeState ?? null,
     });
   } catch (error) {
     console.error("[draw-simulator/results] Error:", error);
