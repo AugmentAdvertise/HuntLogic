@@ -341,6 +341,64 @@ export async function setPreferences(
         },
       });
   }
+
+  // ── Sync experience/points_STATE_SPECIES prefs → point_holdings table ──────
+  // Onboarding stores points as hunter_preferences (category=experience, key=points_NV_mule_deer).
+  // The scoring engine and profile reads point_holdings. Keep them in sync here.
+  const pointPrefs = preferences.filter(
+    (p) =>
+      p.category === "experience" &&
+      p.key.startsWith("points_") &&
+      typeof (p.value as Record<string, unknown>)?.points === "number"
+  );
+
+  if (pointPrefs.length > 0) {
+    // Load state and species id maps
+    const allStates = await db.select({ id: states.id, code: states.code }).from(states);
+    const allSpecies = await db.select({ id: species.id, slug: species.slug }).from(species);
+    const stateByCode = new Map(allStates.map((s) => [s.code, s.id]));
+    const speciesById = new Map(allSpecies.map((s) => [s.slug, s.id]));
+
+    for (const pref of pointPrefs) {
+      // key format: points_STATE_slug (e.g. points_NV_mule_deer)
+      const parts = pref.key.split("_");
+      if (parts.length < 3) continue;
+      // parts[0] = "points", parts[1] = state code, parts[2..] = species slug
+      const stateCode = parts[1]!.toUpperCase();
+      const speciesSlug = parts.slice(2).join("_");
+      const val = pref.value as Record<string, unknown>;
+      const pts = val.points as number;
+
+      const stateId = stateByCode.get(stateCode);
+      const speciesId = speciesById.get(speciesSlug);
+      if (!stateId || !speciesId) continue;
+
+      await db
+        .insert(pointHoldings)
+        .values({
+          userId,
+          stateId,
+          speciesId,
+          pointType: "preference",
+          points: pts,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .onConflictDoUpdate({
+          target: [
+            pointHoldings.userId,
+            pointHoldings.stateId,
+            pointHoldings.speciesId,
+            pointHoldings.pointType,
+          ],
+          set: { points: pts, updatedAt: now },
+        });
+    }
+
+    console.log(
+      `${LOG_PREFIX} setPreferences: synced ${pointPrefs.length} point pref(s) → point_holdings`
+    );
+  }
 }
 
 // =============================================================================

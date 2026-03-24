@@ -15,6 +15,7 @@ import {
   Lock,
   Sparkles,
   MapPin,
+  Compass,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getBestStatesForSpecies, getSpeciesStateContext } from "@/lib/data/state-species-intelligence";
@@ -294,6 +295,39 @@ const US_STATES = [
   ["VA","Virginia"],["WA","Washington"],["WV","West Virginia"],["WI","Wisconsin"],["WY","Wyoming"],
 ] as const;
 
+// ---------------------------------------------------------------------------
+// Inspire Me — curated hunt data
+// ---------------------------------------------------------------------------
+
+const REGIONAL_OTC_HUNTS: Record<string, { species: string; state: string; tagline: string; difficulty: "otc" | "easy_draw" }> = {
+  southeast: { species: "White-tailed Deer", state: "Georgia", tagline: "Some of the best whitetail hunting in the Southeast. OTC license, 750K+ acres of public land.", difficulty: "otc" },
+  south: { species: "White-tailed Deer", state: "Texas", tagline: "More whitetail than anywhere on earth. Private land leases are accessible and affordable.", difficulty: "otc" },
+  midwest: { species: "Pheasant", state: "South Dakota", tagline: "The pheasant capital of the world. Incredible bird numbers and walk-in access.", difficulty: "otc" },
+  west: { species: "Elk", state: "Idaho", tagline: "OTC bull elk tags in the Frank Church Wilderness. No draw, no points — just buy the license.", difficulty: "otc" },
+  northwest: { species: "Black Bear", state: "Montana", tagline: "OTC spring bear tags in western Montana. High density, big public land.", difficulty: "otc" },
+  southwest: { species: "Mule Deer", state: "Nevada", tagline: "Nevada issues more big game tags than most states. Some mule deer units draw with 0 points.", difficulty: "easy_draw" },
+  mountain: { species: "Pronghorn", state: "Wyoming", tagline: "Wyoming has more pronghorn than anywhere on earth. Many units draw in 1-2 years NR.", difficulty: "easy_draw" },
+  northeast: { species: "White-tailed Deer", state: "Pennsylvania", tagline: "Pennsylvania has one of the largest whitetail herds in the country. OTC license, huge public land.", difficulty: "otc" },
+};
+
+const STATE_REGIONS: Record<string, keyof typeof REGIONAL_OTC_HUNTS> = {
+  GA: "southeast", FL: "southeast", SC: "southeast", NC: "southeast", AL: "southeast", MS: "southeast", TN: "southeast", VA: "southeast", AR: "southeast",
+  TX: "south", OK: "south", LA: "south", KY: "south",
+  SD: "midwest", ND: "midwest", NE: "midwest", KS: "midwest", IA: "midwest", MO: "midwest", MN: "midwest", WI: "midwest", IL: "midwest", IN: "midwest", OH: "midwest", MI: "midwest",
+  ID: "west", OR: "west", WA: "northwest", MT: "northwest", AK: "northwest",
+  NV: "southwest", AZ: "southwest", NM: "southwest", UT: "southwest",
+  WY: "mountain", CO: "mountain",
+  CA: "west",
+  NY: "northeast", PA: "northeast", VT: "northeast", NH: "northeast", ME: "northeast", MA: "northeast", CT: "northeast", RI: "northeast", NJ: "northeast", DE: "northeast", MD: "northeast", WV: "northeast",
+};
+
+const ASPIRATIONAL_HUNTS: Record<string, { species: string; state: string; tagline: string; yearsToExpect: string; hook: string }> = {
+  freezer: { species: "Rocky Mountain Elk", state: "Idaho", tagline: "OTC bull elk tags available statewide — no draw, no points. A 5-day camp in the Frank Church Wilderness.", yearsToExpect: "This year", hook: "Over-the-counter. No waiting. Just buy the license and go." },
+  trophy: { species: "Rocky Mountain Bighorn Sheep", state: "Nevada", tagline: "Nevada issues more bighorn sheep tags than any other state. A true once-in-a-lifetime trophy hunt.", yearsToExpect: "8-15 years", hook: "Start your points today. Nevada is the best NR sheep state in the country." },
+  lifetime: { species: "Desert Bighorn Sheep", state: "Arizona", tagline: "Arizona bighorn sheep is the pinnacle of North American big game hunting. Record-class rams in the Sonoran Desert.", yearsToExpect: "15-25 years", hook: "Apply every year. When you draw, it'll be the hunt of your life." },
+  balanced: { species: "Bull Elk", state: "Colorado", tagline: "Colorado has the largest elk population on earth. Preference points grow value every year — many units draw in 5-7 years.", yearsToExpect: "3-7 years", hook: "Best ROI in western big game. Start accumulating points now." },
+};
+
 function StepPoints({
   hasPoints,
   setHasPoints,
@@ -455,6 +489,188 @@ function StepMotivation({
     </div>
   );
 }
+
+// ---------------------------------------------------------------------------
+// Inspire Me Step Components
+// ---------------------------------------------------------------------------
+
+function InspireHomeState({
+  homeState,
+  setHomeState,
+}: {
+  homeState: string;
+  setHomeState: (s: string) => void;
+}) {
+  return (
+    <div>
+      <h2 className="text-2xl font-bold text-brand-bark dark:text-brand-cream md:text-3xl">
+        Where do you live?
+      </h2>
+      <p className="mt-2 text-brand-sage">
+        We&apos;ll find hunts based on your home region and residency.
+      </p>
+      <div className="mt-6">
+        <select
+          value={homeState}
+          onChange={(e) => setHomeState(e.target.value)}
+          className="w-full max-w-xs rounded-xl border border-brand-sage/20 bg-white px-4 py-2.5 text-sm text-brand-bark dark:bg-brand-bark dark:text-brand-cream dark:border-brand-sage/30 focus:border-brand-forest focus:outline-none focus:ring-1 focus:ring-brand-forest"
+        >
+          <option value="">Select your home state...</option>
+          {US_STATES.map(([code, name]) => (
+            <option key={code} value={code}>{name}</option>
+          ))}
+        </select>
+      </div>
+    </div>
+  );
+}
+
+function InspireMotivation({
+  selected,
+  onSelect,
+}: {
+  selected: Motivation | null;
+  onSelect: (m: Motivation) => void;
+}) {
+  return (
+    <div>
+      <h2 className="text-2xl font-bold text-brand-bark dark:text-brand-cream md:text-3xl">
+        What matters most?
+      </h2>
+      <p className="mt-2 text-brand-sage">
+        Tell us what kind of experience you&apos;re after.
+      </p>
+      <div className="mt-6 grid gap-3 sm:grid-cols-2">
+        {MOTIVATIONS.map((m) => {
+          const Icon = m.icon;
+          return (
+            <button
+              key={m.key}
+              onClick={() => onSelect(m.key)}
+              className={cn(
+                "flex items-start gap-4 rounded-xl border p-4 text-left transition-all",
+                selected === m.key
+                  ? "border-brand-forest bg-brand-forest/5 shadow-md dark:border-brand-sage dark:bg-brand-sage/10"
+                  : "border-brand-sage/20 hover:border-brand-forest hover:shadow-sm dark:hover:border-brand-sage"
+              )}
+            >
+              <div
+                className={cn(
+                  "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg",
+                  selected === m.key
+                    ? "bg-brand-forest text-white dark:bg-brand-sage"
+                    : "bg-brand-sage/10 text-brand-sage"
+                )}
+              >
+                <Icon className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="font-semibold text-brand-bark dark:text-brand-cream">
+                  {m.label}
+                </p>
+                <p className="mt-0.5 text-sm text-brand-sage">
+                  {m.description}
+                </p>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function InspireResults({
+  homeState,
+  motivation,
+  onExploreAll,
+}: {
+  homeState: string;
+  motivation: Motivation;
+  onExploreAll: () => void;
+}) {
+  const region = STATE_REGIONS[homeState] ?? "west";
+  const otcHunt = REGIONAL_OTC_HUNTS[region];
+  const dreamHunt = ASPIRATIONAL_HUNTS[motivation];
+
+  return (
+    <div>
+      <h2 className="text-2xl font-bold text-brand-bark dark:text-brand-cream md:text-3xl">
+        Your Hunting Inspiration
+      </h2>
+      <p className="mt-2 text-brand-sage">
+        Based on where you live and what matters to you.
+      </p>
+
+      {/* Card 1: Hunt This Fall */}
+      {otcHunt && (
+        <div className="mt-6 rounded-xl border-2 border-green-500/30 bg-green-50/50 p-6 dark:border-green-500/20 dark:bg-green-950/20">
+          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-green-700 dark:text-green-400">
+            <MapPin className="h-4 w-4" />
+            Hunt This Fall
+          </div>
+          <h3 className="mt-3 text-xl font-bold text-brand-bark dark:text-brand-cream">
+            {otcHunt.species} — {otcHunt.state}
+          </h3>
+          <p className="mt-2 text-sm leading-relaxed text-brand-sage">
+            {otcHunt.tagline}
+          </p>
+          <span className="mt-3 inline-block rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700 dark:bg-green-900/30 dark:text-green-400">
+            {otcHunt.difficulty === "otc" ? "No draw required" : "Easy draw"}
+          </span>
+        </div>
+      )}
+
+      {/* Card 2: Your 5-Year Dream */}
+      {dreamHunt && (
+        <div className="mt-4 rounded-xl border-2 border-amber-500/30 bg-amber-50/50 p-6 dark:border-amber-500/20 dark:bg-amber-950/20">
+          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400">
+            <Mountain className="h-4 w-4" />
+            Your 5-Year Dream
+          </div>
+          <h3 className="mt-3 text-xl font-bold text-brand-bark dark:text-brand-cream">
+            {dreamHunt.species} — {dreamHunt.state}
+          </h3>
+          <p className="mt-2 text-sm leading-relaxed text-brand-sage">
+            {dreamHunt.tagline}
+          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <span className="inline-block rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+              Start building points today
+            </span>
+            <span className="text-xs text-brand-sage">
+              Est. {dreamHunt.yearsToExpect} to draw
+            </span>
+          </div>
+          <p className="mt-2 text-sm font-medium italic text-amber-800 dark:text-amber-300">
+            {dreamHunt.hook}
+          </p>
+        </div>
+      )}
+
+      {/* CTAs */}
+      <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+        <Link
+          href="/signup"
+          className="inline-flex min-h-[44px] items-center gap-2 rounded-[8px] bg-gradient-cta px-6 py-3 text-sm font-semibold text-white shadow-md transition-all hover:-translate-y-0.5 hover:shadow-lg"
+        >
+          Build Your Full Strategy
+          <ArrowRight className="h-4 w-4" />
+        </Link>
+        <button
+          onClick={onExploreAll}
+          className="text-sm font-medium text-brand-sage transition-colors hover:text-brand-bark dark:hover:text-brand-cream"
+        >
+          Explore All Hunts
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Step Components (continued)
+// ---------------------------------------------------------------------------
 
 function StepResults({
   results,
@@ -649,6 +865,10 @@ export default function DrawSimulatorPage() {
     new Map()
   );
 
+  // Inspire Me flow
+  const [inspireMode, setInspireMode] = useState(false);
+  const [inspireStep, setInspireStep] = useState(1);
+
   // Results
   const [results, setResults] = useState<SimulatorResults | null>(null);
   const [resultsLoading, setResultsLoading] = useState(false);
@@ -819,15 +1039,82 @@ export default function DrawSimulatorPage() {
       {/* Wizard */}
       <div className="mx-auto max-w-2xl px-4 py-8 md:px-6 md:py-12">
         {/* Progress */}
-        <ProgressBar step={step} />
+        {!inspireMode && <ProgressBar step={step} />}
+        {inspireMode && inspireStep < 3 && (
+          <div className="w-full">
+            <div className="mb-2 flex items-center justify-between text-xs font-medium text-brand-sage">
+              <span>Step {inspireStep} of 2</span>
+              <span>{Math.round((inspireStep / 2) * 100)}%</span>
+            </div>
+            <div className="h-2 w-full overflow-hidden rounded-full bg-brand-sage/10">
+              <div
+                className="h-full rounded-full bg-gradient-cta transition-all duration-500 ease-out"
+                style={{ width: `${(inspireStep / 2) * 100}%` }}
+              />
+            </div>
+          </div>
+        )}
 
         {/* Step content with fade transition */}
-        <div key={step} className="mt-8 draw-wizard-fade-in">
-          {step === 1 && (
-            <StepSpecies
-              speciesList={speciesList}
-              selected={selectedSpecies}
-              toggle={toggleSpecies}
+        <div key={inspireMode ? `inspire-${inspireStep}` : step} className="mt-8 draw-wizard-fade-in">
+          {step === 1 && !inspireMode && (
+            <div>
+              {/* Entry path choice */}
+              <div className="mb-8 grid gap-3 sm:grid-cols-2">
+                <button
+                  className="flex items-center gap-3 rounded-xl border-2 border-brand-forest/20 bg-brand-forest/5 p-4 text-left transition-all dark:border-brand-sage/20 dark:bg-brand-sage/10"
+                >
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-forest text-white dark:bg-brand-sage">
+                    <Crosshair className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-brand-bark dark:text-brand-cream">
+                      I know what I want to hunt
+                    </p>
+                    <p className="mt-0.5 text-xs text-brand-sage">
+                      Pick species, states, and weapon
+                    </p>
+                  </div>
+                </button>
+                <button
+                  onClick={() => { setInspireMode(true); setInspireStep(1); }}
+                  className="flex items-center gap-3 rounded-xl border border-brand-sage/20 p-4 text-left transition-all hover:border-brand-forest hover:shadow-sm dark:hover:border-brand-sage"
+                >
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-sage/10 text-brand-sage">
+                    <Compass className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-brand-bark dark:text-brand-cream">
+                      Inspire me — I&apos;m not sure
+                    </p>
+                    <p className="mt-0.5 text-xs text-brand-sage">
+                      2 questions, instant recommendations
+                    </p>
+                  </div>
+                </button>
+              </div>
+              <StepSpecies
+                speciesList={speciesList}
+                selected={selectedSpecies}
+                toggle={toggleSpecies}
+              />
+            </div>
+          )}
+          {inspireMode && inspireStep === 1 && (
+            <InspireHomeState homeState={homeState} setHomeState={setHomeState} />
+          )}
+          {inspireMode && inspireStep === 2 && (
+            <InspireMotivation selected={motivation} onSelect={setMotivation} />
+          )}
+          {inspireMode && inspireStep === 3 && motivation && (
+            <InspireResults
+              homeState={homeState}
+              motivation={motivation}
+              onExploreAll={() => {
+                setInspireMode(false);
+                setInspireStep(1);
+                setStep(1);
+              }}
             />
           )}
           {step === 2 && (
@@ -867,7 +1154,7 @@ export default function DrawSimulatorPage() {
         </div>
 
         {/* Navigation */}
-        {step < TOTAL_STEPS && (
+        {!inspireMode && step < TOTAL_STEPS && (
           <div className="mt-8 flex items-center justify-between">
             <button
               onClick={goBack}
@@ -893,6 +1180,42 @@ export default function DrawSimulatorPage() {
               )}
             >
               {step === 5 ? "See My Results" : "Next"}
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+
+        {/* Inspire Me navigation */}
+        {inspireMode && inspireStep < 3 && (
+          <div className="mt-8 flex items-center justify-between">
+            <button
+              onClick={() => {
+                if (inspireStep === 1) {
+                  setInspireMode(false);
+                  setInspireStep(1);
+                } else {
+                  setInspireStep(inspireStep - 1);
+                }
+              }}
+              className="inline-flex items-center gap-1.5 rounded-[8px] px-4 py-2.5 text-sm font-medium text-brand-bark transition-all hover:bg-brand-sage/10 dark:text-brand-cream"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back
+            </button>
+            <button
+              onClick={() => setInspireStep(inspireStep + 1)}
+              disabled={
+                (inspireStep === 1 && !homeState) ||
+                (inspireStep === 2 && !motivation)
+              }
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-[8px] px-6 py-2.5 text-sm font-semibold text-white transition-all",
+                (inspireStep === 1 && homeState) || (inspireStep === 2 && motivation)
+                  ? "bg-gradient-cta shadow-md hover:-translate-y-0.5 hover:shadow-lg"
+                  : "cursor-not-allowed bg-brand-sage/30"
+              )}
+            >
+              {inspireStep === 2 ? "Inspire" : "Next"}
               <ChevronRight className="h-4 w-4" />
             </button>
           </div>
