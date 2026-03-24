@@ -10,17 +10,11 @@ import { eq, and, gt, lt, desc, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   drawOdds,
-  harvestStats,
   huntUnits,
   states,
   species,
   stateSpecies,
 } from "@/lib/db/schema";
-
-// Curated fallback data (used when DB has no data)
-import {
-  STATE_SPECIES_INTELLIGENCE,
-} from "@/lib/data/state-species-intelligence";
 
 // =============================================================================
 // Types
@@ -85,10 +79,64 @@ const ASPIRATIONAL_HUNTS: Record<Motivation, HuntSuggestion> = {
 };
 
 // =============================================================================
+// Rate limiting (IP-based, in-memory — same pattern as simulation route)
+// =============================================================================
+
+const inspireRateLimiter = new Map<string, number[]>();
+const INSPIRE_MAX_PER_MIN = 10;
+const INSPIRE_WINDOW_MS = 60_000;
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const timestamps = inspireRateLimiter.get(ip) ?? [];
+  const recent = timestamps.filter((t) => now - t < INSPIRE_WINDOW_MS);
+  if (recent.length >= INSPIRE_MAX_PER_MIN) return false;
+  recent.push(now);
+  inspireRateLimiter.set(ip, recent);
+  return true;
+}
+
+// =============================================================================
+// Response cache (in-memory, keyed homeState:motivation, 30-min TTL)
+// =============================================================================
+
+interface CachedResponse {
+  data: InspireMeResponse;
+  cachedAt: number;
+}
+
+const responseCache = new Map<string, CachedResponse>();
+const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
+
+function getCached(homeState: string, motivation: Motivation): InspireMeResponse | null {
+  const key = `${homeState}:${motivation}`;
+  const entry = responseCache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.cachedAt > CACHE_TTL_MS) {
+    responseCache.delete(key);
+    return null;
+  }
+  return entry.data;
+}
+
+function setCached(homeState: string, motivation: Motivation, data: InspireMeResponse): void {
+  responseCache.set(`${homeState}:${motivation}`, { data, cachedAt: Date.now() });
+}
+
+// =============================================================================
 // Validation
 // =============================================================================
 
 const VALID_MOTIVATIONS = new Set<string>(["freezer", "trophy", "lifetime", "balanced"]);
+
+// Complete set of valid US state codes — rejects "XX", "ZZ", etc.
+const VALID_STATE_CODES = new Set<string>([
+  "AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA",
+  "HI","ID","IL","IN","IA","KS","KY","LA","ME","MD",
+  "MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ",
+  "NM","NY","NC","ND","OH","OK","OR","PA","RI","SC",
+  "SD","TN","TX","UT","VT","VA","WA","WV","WI","WY",
+]);
 
 function validateBody(
   body: unknown
@@ -102,6 +150,10 @@ function validateBody(
   if (typeof b["homeState"] !== "string" || b["homeState"].length < 2) {
     return { ok: false, error: "homeState is required (e.g. 'CO')" };
   }
+  const homeState = (b["homeState"] as string).toUpperCase().trim();
+  if (!VALID_STATE_CODES.has(homeState)) {
+    return { ok: false, error: `homeState '${homeState}' is not a valid US state code` };
+  }
   if (typeof b["motivation"] !== "string" || !VALID_MOTIVATIONS.has(b["motivation"])) {
     return { ok: false, error: "motivation must be one of: freezer, trophy, lifetime, balanced" };
   }
@@ -109,7 +161,7 @@ function validateBody(
   return {
     ok: true,
     data: {
-      homeState: (b["homeState"] as string).toUpperCase(),
+      homeState,
       motivation: b["motivation"] as Motivation,
     },
   };
@@ -162,8 +214,8 @@ async function findOtcHunt(homeState: string): Promise<HuntSuggestion | null> {
 
     if (otcRows.length === 0) return null;
 
-    // Prefer hunts in the user's region
-    const userRegion = STATE_REGIONS[homeState];
+    // Prefer hunts in the user's region (fallback to "west" for unmapped states)
+    const userRegion = STATE_REGIONS[homeState] ?? "west";
     const regionStates = Object.entries(STATE_REGIONS)
       .filter(([, r]) => r === userRegion)
       .map(([s]) => s);
@@ -297,6 +349,17 @@ async function findAspirationHunt(motivation: Motivation): Promise<HuntSuggestio
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limiting — keyed by IP
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+      ?? request.headers.get("x-real-ip")
+      ?? "unknown";
+    if (!checkRateLimit(ip)) {
+      return NextResponse.json(
+        { error: "Too many requests. Please slow down." },
+        { status: 429, headers: { "Retry-After": "60" } }
+      );
+    }
+
     const body: unknown = await request.json();
     const validation = validateBody(body);
     if (!validation.ok) {
@@ -304,6 +367,14 @@ export async function POST(request: NextRequest) {
     }
 
     const { homeState, motivation } = validation.data;
+
+    // Cache hit — return immediately
+    const cached = getCached(homeState, motivation);
+    if (cached) {
+      return NextResponse.json(cached, {
+        headers: { "X-Cache": "HIT" },
+      });
+    }
 
     // Try DB-driven results first
     const [dbOtc, dbDream] = await Promise.all([
@@ -320,11 +391,14 @@ export async function POST(request: NextRequest) {
     const fiveYearDream = dbDream ?? curatedDream;
     const source = (dbOtc || dbDream) ? "database" as const : "curated" as const;
 
-    return NextResponse.json({
-      huntThisFall,
-      fiveYearDream,
-      source,
-    } satisfies InspireMeResponse);
+    const response: InspireMeResponse = { huntThisFall, fiveYearDream, source };
+
+    // Cache the result
+    setCached(homeState, motivation, response);
+
+    return NextResponse.json(response, {
+      headers: { "X-Cache": "MISS" },
+    });
   } catch (error) {
     console.error("[inspire-me] POST error:", error);
     return NextResponse.json(
