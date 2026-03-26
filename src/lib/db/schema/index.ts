@@ -113,6 +113,17 @@ export {
   authAccountsRelations,
 } from "./auth";
 
+// AI Chat domain
+export {
+  aiChatSessions,
+  aiChatMessages,
+  aiChatSessionsRelations,
+  aiChatMessagesRelations,
+} from "./ai-chat";
+
+// Knowledge domain
+export { knowledgeChunks } from "./knowledge-chunks";
+
 // Concierge domain
 export {
   stateFeeSchedules,

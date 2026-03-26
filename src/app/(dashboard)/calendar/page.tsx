@@ -167,7 +167,7 @@ export default function CalendarPage() {
   useEffect(() => {
     async function fetchDeadlines() {
       try {
-        const res = await fetch("/api/v1/deadlines?upcoming=true");
+        const res = await fetch("/api/v1/deadlines?year=2026");
         if (res.ok) {
           const data = await res.json();
           const raw: CalendarDeadlineRaw[] = data.deadlines || [];
