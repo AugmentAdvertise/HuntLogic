@@ -134,7 +134,7 @@ export default function PointsPage() {
   // Add-points form state
   const [selectedState, setSelectedState] = useState("");
   const [speciesPoints, setSpeciesPoints] = useState<
-    Record<string, { points: string; year: string }>
+    Record<string, { points: string }>
   >({});
 
   const drawStates = useMemo(() => getDrawStates(), []);
@@ -166,9 +166,9 @@ export default function PointsPage() {
   // Reset species form when state changes
   useEffect(() => {
     if (selectedState && stateSpecies.length > 0) {
-      const init: Record<string, { points: string; year: string }> = {};
+      const init: Record<string, { points: string }> = {};
       for (const sp of stateSpecies) {
-        init[sp.slug] = { points: "", year: "" };
+        init[sp.slug] = { points: "" };
       }
       setSpeciesPoints(init);
     }
@@ -222,17 +222,15 @@ export default function PointsPage() {
 
     const newHoldings: PointHolding[] = [];
     const now = new Date().toISOString();
-    const currentYear = new Date().getFullYear();
 
     for (const sp of stateSpecies) {
       const entry = speciesPoints[sp.slug];
       if (!entry) continue;
 
       const pts = entry.points === "" ? 0 : parseInt(entry.points, 10) || 0;
-      const yr = entry.year === "" ? currentYear : parseInt(entry.year, 10) || currentYear;
 
-      // Only save if user entered points > 0 or a year
-      if (pts > 0 || entry.year !== "") {
+      // Only save species where user entered points > 0
+      if (pts > 0) {
         newHoldings.push({
           id: `ph-${Date.now()}-${sp.slug}`,
           userId: "u-1",
@@ -243,7 +241,7 @@ export default function PointsPage() {
           speciesName: sp.name,
           pointType: sp.pointType,
           points: pts,
-          yearStarted: yr,
+          yearStarted: null,
           verified: false,
           createdAt: now,
           updatedAt: now,
@@ -266,25 +264,6 @@ export default function PointsPage() {
       ...prev,
       [slug]: { ...prev[slug]!, points: raw === "" ? "" : String(Math.min(30, parseInt(raw, 10))) },
     }));
-  };
-
-  const handleSpeciesYearChange = (slug: string, value: string) => {
-    const raw = value.replace(/\D/g, "").slice(0, 4);
-    setSpeciesPoints((prev) => ({
-      ...prev,
-      [slug]: { ...prev[slug]!, year: raw },
-    }));
-  };
-
-  const handleSpeciesYearBlur = (slug: string) => {
-    setSpeciesPoints((prev) => {
-      const entry = prev[slug];
-      if (!entry || entry.year === "") return prev;
-      let yr = parseInt(entry.year, 10);
-      if (isNaN(yr) || yr < 1990) yr = 1990;
-      if (yr > new Date().getFullYear()) yr = new Date().getFullYear();
-      return { ...prev, [slug]: { ...entry, year: String(yr) } };
-    });
   };
 
   const hasAnyPoints = Object.values(speciesPoints).some(
@@ -386,15 +365,10 @@ export default function PointsPage() {
                           <p className="text-sm font-medium text-brand-bark dark:text-brand-cream">
                             {holding.speciesName}
                           </p>
-                          <div className="mt-0.5 flex items-center gap-2">
+                          <div className="mt-0.5">
                             <Badge variant="outline" size="sm">
                               {holding.pointType}
                             </Badge>
-                            {holding.yearStarted && (
-                              <span className="text-xs text-brand-sage">
-                                Since {holding.yearStarted}
-                              </span>
-                            )}
                           </div>
                         </div>
 
@@ -474,7 +448,8 @@ export default function PointsPage() {
         title="Add Points"
         snapPoint="full"
       >
-        <div className="space-y-5">
+        <div className="flex flex-col h-full overflow-hidden">
+        <div className="flex-1 overflow-y-auto space-y-5 pb-4">
           {/* State selector */}
           <div>
             <label className="block text-sm font-medium text-brand-bark dark:text-brand-cream mb-1.5">
@@ -546,44 +521,18 @@ export default function PointsPage() {
                       </div>
 
                       {/* Points input */}
-                      <div className="flex items-center gap-2">
-                        <div className="text-center">
-                          <label className="block text-[10px] text-brand-sage mb-0.5">
-                            Pts
-                          </label>
-                          <input
-                            type="text"
-                            inputMode="numeric"
-                            pattern="[0-9]*"
-                            value={entry?.points ?? ""}
-                            placeholder="0"
-                            onChange={(e) =>
-                              handleSpeciesPointChange(sp.slug, e.target.value)
-                            }
-                            disabled={sp.pointType === "none"}
-                            className="w-14 min-h-[36px] rounded-lg border border-brand-sage/20 bg-white px-2 py-1.5 text-center text-sm tabular-nums dark:bg-brand-bark dark:border-brand-sage/30 dark:text-brand-cream disabled:opacity-40 disabled:cursor-not-allowed"
-                          />
-                        </div>
-
-                        {/* Year input */}
-                        <div className="text-center">
-                          <label className="block text-[10px] text-brand-sage mb-0.5">
-                            Since
-                          </label>
-                          <input
-                            type="text"
-                            inputMode="numeric"
-                            pattern="[0-9]*"
-                            value={entry?.year ?? ""}
-                            placeholder={String(new Date().getFullYear())}
-                            onChange={(e) =>
-                              handleSpeciesYearChange(sp.slug, e.target.value)
-                            }
-                            onBlur={() => handleSpeciesYearBlur(sp.slug)}
-                            className="w-16 min-h-[36px] rounded-lg border border-brand-sage/20 bg-white px-2 py-1.5 text-center text-sm tabular-nums dark:bg-brand-bark dark:border-brand-sage/30 dark:text-brand-cream"
-                          />
-                        </div>
-                      </div>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        value={entry?.points ?? ""}
+                        placeholder="0"
+                        onChange={(e) =>
+                          handleSpeciesPointChange(sp.slug, e.target.value)
+                        }
+                        disabled={sp.pointType === "none"}
+                        className="w-16 min-h-[40px] shrink-0 rounded-lg border border-brand-sage/20 bg-white px-2 py-1.5 text-center text-base font-semibold tabular-nums dark:bg-brand-bark dark:border-brand-sage/30 dark:text-brand-cream disabled:opacity-40 disabled:cursor-not-allowed"
+                      />
                     </div>
                   );
                 })}
@@ -601,15 +550,19 @@ export default function PointsPage() {
             </div>
           )}
 
-          {/* Save button */}
+        </div>
+
+          {/* Sticky save button at bottom */}
           {selectedState && stateSpecies.length > 0 && (
-            <Button
-              fullWidth
-              onClick={handleSaveAll}
-              disabled={!hasAnyPoints}
-            >
-              Save Points for {STATE_NAMES[selectedState] ?? selectedState}
-            </Button>
+            <div className="shrink-0 border-t border-brand-sage/10 pt-3 pb-2 dark:border-brand-sage/20">
+              <Button
+                fullWidth
+                onClick={handleSaveAll}
+                disabled={!hasAnyPoints}
+              >
+                Save Points for {STATE_NAMES[selectedState] ?? selectedState}
+              </Button>
+            </div>
           )}
         </div>
       </Sheet>
