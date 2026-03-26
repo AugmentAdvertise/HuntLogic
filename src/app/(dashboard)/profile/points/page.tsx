@@ -406,8 +406,17 @@ export default function PointsPage() {
                 value={newYearStarted === 0 ? "" : String(newYearStarted)}
                 placeholder="2020"
                 onChange={(e) => {
-                  const raw = e.target.value.replace(/\D/g, "");
-                  setNewYearStarted(raw === "" ? 2020 : Math.min(2030, Math.max(2000, parseInt(raw, 10))));
+                  const raw = e.target.value.replace(/\D/g, "").slice(0, 4);
+                  setNewYearStarted(raw === "" ? 0 : parseInt(raw, 10));
+                }}
+                onBlur={() => {
+                  if (newYearStarted === 0) {
+                    setNewYearStarted(2020);
+                  } else if (newYearStarted < 1990) {
+                    setNewYearStarted(1990);
+                  } else if (newYearStarted > new Date().getFullYear()) {
+                    setNewYearStarted(new Date().getFullYear());
+                  }
                 }}
                 className="w-full min-h-[44px] rounded-xl border border-brand-sage/20 bg-white px-4 py-2.5 text-base dark:bg-brand-bark dark:border-brand-sage/30 dark:text-brand-cream"
               />
