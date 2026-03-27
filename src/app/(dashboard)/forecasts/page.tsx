@@ -44,7 +44,36 @@ interface ForecastData {
   trend: string;
 }
 
+/* ---- Raw API shapes (what the server actually returns) ---- */
+
+interface RawForecastResponse {
+  type: string;
+  forecast?: {
+    historicalData?: { year: number; value: number }[];
+    projections?: { year: number; projected: number; lowerBound: number; upperBound: number }[];
+    trend?: string;
+    trendStrength?: number;
+    confidence?: { score: number; label: string; basis: string };
+    [key: string]: unknown;
+  };
+}
+
+interface RawRoiResponse {
+  type: string;
+  assessment?: {
+    verdict?: string;
+    verdictRationale?: string;
+    alternativeUse?: string;
+    estimatedYearsToTag?: number | null;
+    totalFutureInvestment?: number;
+    breakEvenPointThreshold?: number | null;
+    costPerOpportunity?: number;
+    [key: string]: unknown;
+  };
+}
+
 const roiColors: Record<string, { variant: "success" | "info" | "warning" | "danger"; label: string }> = {
+  continue: { variant: "success", label: "Continue" },
   strong_buy: { variant: "success", label: "Strong Buy" },
   buy: { variant: "success", label: "Buy" },
   hold: { variant: "warning", label: "Hold" },
@@ -110,35 +139,67 @@ function ForecastsPageInner() {
       setIsLoading(true);
       try {
         const [pointCreepData, roiData] = await Promise.all([
-          fetchWithCache<{ forecast?: { pointCreep?: ForecastData["pointCreep"]; drawOdds?: ForecastData["drawOdds"]; trend?: string } }>(
+          fetchWithCache<RawForecastResponse>(
             `/api/v1/forecasts?type=point-creep&state=${selection.state}&species=${selection.species}`,
             { staleMs: 60_000 }
           ),
-          fetchWithCache<{ assessment?: ForecastData["roi"] }>(
+          fetchWithCache<RawRoiResponse>(
             `/api/v1/forecasts?type=roi&state=${selection.state}&species=${selection.species}`,
             { staleMs: 60_000 }
           ),
         ]);
 
+        const rawForecast = pointCreepData.forecast;
+        const rawAssessment = roiData.assessment;
+
+        // Map API shape → component shape
+        const historicalData = (rawForecast?.historicalData ?? []).map((d) => ({
+          year: d.year,
+          points: d.value,
+        }));
+
+        const projectedData = (rawForecast?.projections ?? []).map((d) => ({
+          year: d.year,
+          points: d.projected,
+        }));
+
+        // Estimate draw year: first projected year where user could plausibly draw
+        const currentYear = new Date().getFullYear();
+        const estimatedDrawYear =
+          projectedData.length > 0
+            ? projectedData[projectedData.length - 1]?.year ?? currentYear + 5
+            : currentYear;
+
+        // Build draw odds trend from historical data
+        const drawOddsTrend = historicalData.map((d) => ({
+          year: d.year,
+          value: d.points,
+        }));
+
         setForecast({
-          pointCreep: pointCreepData.forecast?.pointCreep ?? pointCreepData.forecast as unknown as ForecastData["pointCreep"] ?? {
-            historicalData: [],
-            projectedData: [],
-            userPoints: 0,
-            estimatedDrawYear: 0,
+          pointCreep: {
+            historicalData,
+            projectedData,
+            userPoints: 0, // User's points not available without profile context
+            estimatedDrawYear,
           },
-          drawOdds: pointCreepData.forecast?.drawOdds ?? {
+          drawOdds: {
             atCurrentPoints: 0,
-            trend: [],
+            trend: drawOddsTrend,
           },
-          roi: roiData.assessment ?? {
-            recommendation: "hold",
-            costPerOpportunity: 0,
-            projectedYears: 0,
-            totalInvestment: 0,
-            explanation: "",
+          roi: {
+            recommendation: rawAssessment?.verdict ?? "hold",
+            costPerOpportunity: rawAssessment?.totalFutureInvestment
+              ? Math.round(
+                  rawAssessment.totalFutureInvestment /
+                    Math.max(1, rawAssessment.estimatedYearsToTag ?? 1)
+                )
+              : 0,
+            projectedYears: rawAssessment?.estimatedYearsToTag ?? 0,
+            totalInvestment: rawAssessment?.totalFutureInvestment ?? 0,
+            explanation: rawAssessment?.verdictRationale ?? "",
           },
-          trend: pointCreepData.forecast?.trend ?? "stable",
+          trend: rawForecast?.trend ?? "stable",
         });
       } catch (err) {
         console.error("[forecasts] Failed to fetch forecast:", err);

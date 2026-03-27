@@ -107,30 +107,33 @@ export function Sheet({
           className
         )}
       >
-        {/* Drag handle (mobile) */}
-        <div className="flex justify-center pt-3 lg:hidden">
-          <div className="h-1.5 w-10 rounded-full bg-brand-sage/20" />
-        </div>
-
-        {/* Header */}
-        {title && (
-          <div className="flex items-center justify-between border-b border-brand-sage/10 px-4 py-3">
-            <h3 className="text-lg font-semibold text-brand-bark dark:text-brand-cream">
-              {title}
-            </h3>
-            <button
-              onClick={onClose}
-              className="flex h-8 w-8 items-center justify-center rounded-full text-brand-sage hover:bg-brand-sage/10"
-              aria-label="Close"
-            >
-              <X className="h-5 w-5" />
-            </button>
+        {/* Use flex column so content area gets a real bounded height */}
+        <div className="flex flex-col h-full overflow-hidden">
+          {/* Drag handle (mobile) */}
+          <div className="flex justify-center pt-3 lg:hidden shrink-0">
+            <div className="h-1.5 w-10 rounded-full bg-brand-sage/20" />
           </div>
-        )}
 
-        {/* Content */}
-        <div className="overflow-y-auto p-4" style={{ maxHeight: "calc(100% - 60px)" }}>
-          {children}
+          {/* Header */}
+          {title && (
+            <div className="shrink-0 flex items-center justify-between border-b border-brand-sage/10 px-4 py-3">
+              <h3 className="text-lg font-semibold text-brand-bark dark:text-brand-cream">
+                {title}
+              </h3>
+              <button
+                onClick={onClose}
+                className="flex h-8 w-8 items-center justify-center rounded-full text-brand-sage hover:bg-brand-sage/10"
+                aria-label="Close"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+          )}
+
+          {/* Content — flex-1 gives it a real bounded height so children can use h-full/overflow */}
+          <div className="flex-1 overflow-y-auto p-4 min-h-0">
+            {children}
+          </div>
         </div>
       </div>
     </>

@@ -36,7 +36,8 @@ interface StateOption {
 
 interface SpeciesOption {
   slug: string;
-  commonName: string;
+  name: string;
+  commonName?: string;
 }
 
 const emptyScenario = (): ScenarioInput => ({
@@ -175,7 +176,7 @@ export default function SimulationPage() {
                 <option value="">Species...</option>
                 {speciesOptions.map((s) => (
                   <option key={s.slug} value={s.slug}>
-                    {s.commonName}
+                    {s.name ?? s.commonName}
                   </option>
                 ))}
               </select>
