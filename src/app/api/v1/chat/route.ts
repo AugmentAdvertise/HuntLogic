@@ -66,26 +66,35 @@ export async function POST(request: NextRequest) {
 
   const fullMessage = messageParts.join("\n\n");
 
-  // Try OpenClaw gateway first, then fall back to direct SDK
+  // Try OpenClaw gateway first, then fall back to direct providers
   try {
     const reply = await callOpenClawGateway(fullMessage);
     return NextResponse.json({ text: reply });
   } catch (gatewayErr) {
     console.warn(
-      "[chat] OpenClaw gateway unavailable, trying direct SDK:",
+      "[chat] OpenClaw gateway unavailable, trying direct providers:",
       gatewayErr instanceof Error ? gatewayErr.message : String(gatewayErr)
     );
 
-    // Fallback: direct Anthropic SDK (if key is available)
     try {
       const reply = await callAnthropicDirect(fullMessage);
       return NextResponse.json({ text: reply });
-    } catch (sdkErr) {
-      console.error("[chat] All backends failed:", sdkErr);
-      return NextResponse.json(
-        { error: `${config.app.aiAssistantName} is currently unavailable. Try messaging him on Telegram: ${config.app.telegramBot}` },
-        { status: 503 }
+    } catch (anthropicErr) {
+      console.warn(
+        "[chat] Anthropic unavailable, trying Gemini:",
+        anthropicErr instanceof Error ? anthropicErr.message : String(anthropicErr)
       );
+
+      try {
+        const reply = await callGeminiDirect(fullMessage);
+        return NextResponse.json({ text: reply });
+      } catch (geminiErr) {
+        console.error("[chat] All backends failed:", geminiErr);
+        return NextResponse.json(
+          { error: `${config.app.aiAssistantName} is currently unavailable. Try messaging him on Telegram: ${config.app.telegramBot}` },
+          { status: 503 }
+        );
+      }
     }
   }
 }
@@ -177,7 +186,6 @@ async function loadHunterProfileContext(userId: string): Promise<string> {
       speciesName: string;
       unitCode: string | null;
       score: number | null;
-      rationale: string | null;
       rank: number | null;
     }[] = [];
 
@@ -188,7 +196,6 @@ async function loadHunterProfileContext(userId: string): Promise<string> {
           speciesName: species.commonName,
           unitCode: huntUnits.unitCode,
           score: recommendations.score,
-          rationale: recommendations.rationale,
           rank: recommendations.rank,
         })
         .from(recommendations)
@@ -267,7 +274,7 @@ async function callOpenClawGateway(message: string): Promise<string> {
       ],
       max_tokens: 4096,
     }),
-    signal: AbortSignal.timeout(55000),
+    signal: AbortSignal.timeout(15000),
   });
 
   if (!res.ok) {
@@ -308,6 +315,62 @@ async function callAnthropicDirect(message: string): Promise<string> {
 
   const textBlock = response.content.find((b) => b.type === "text");
   return textBlock?.text || "Sorry, I couldn't generate a response.";
+}
+
+async function callGeminiDirect(message: string): Promise<string> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("No GEMINI_API_KEY configured");
+  }
+
+  const model = process.env.GEMINI_CHAT_MODEL || "gemini-2.5-flash";
+  if (!/^[\w.-]+$/.test(model)) {
+    throw new Error("Invalid GEMINI_CHAT_MODEL");
+  }
+  const systemPrompt = `You are ${config.app.aiAssistantName}, the AI concierge for ${config.app.brandName} — a national hunting guide powered by real state agency data. You are knowledgeable, direct, and friendly — like a seasoned outfitter who genuinely wants hunters to fill their tags. Use specific numbers when available. When uncertain, say so clearly.`;
+
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": apiKey,
+      },
+      body: JSON.stringify({
+        systemInstruction: {
+          parts: [{ text: systemPrompt }],
+        },
+        contents: [
+          {
+            role: "user",
+            parts: [{ text: message }],
+          },
+        ],
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 4096,
+        },
+      }),
+      signal: AbortSignal.timeout(20000),
+    }
+  );
+
+  if (!res.ok) {
+    throw new Error(`Gemini ${res.status}: ${await res.text()}`);
+  }
+
+  const data = await res.json();
+  const text = data?.candidates?.[0]?.content?.parts
+    ?.map((part: { text?: string }) => part.text || "")
+    .join("")
+    .trim();
+
+  if (!text) {
+    throw new Error("Empty response from Gemini");
+  }
+
+  return text;
 }
 
 export async function GET() {

@@ -12,6 +12,12 @@ import { NextRequest, NextResponse } from "next/server";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+};
+
 const GATEWAY_URL = process.env.OPENCLAW_GATEWAY_URL || "https://huntlogic.mysupertool.app";
 const GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN || "";
 
@@ -46,17 +52,12 @@ RULES:
 // POST handler
 // =============================================================================
 
-export async function POST(request: NextRequest) {
-  // CORS
-  const headers = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
-  };
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 200, headers: CORS_HEADERS });
+}
 
-  if (request.method === "OPTIONS") {
-    return new NextResponse(null, { status: 200, headers });
-  }
+export async function POST(request: NextRequest) {
+  const headers = CORS_HEADERS;
 
   const body = await request.json();
   const { messages } = body as { messages: { role: string; content: string }[] };
@@ -66,6 +67,15 @@ export async function POST(request: NextRequest) {
       { error: "messages array required" },
       { status: 400, headers }
     );
+  }
+
+  for (const message of messages) {
+    if (typeof message?.content !== "string" || message.content.length > 4000) {
+      return NextResponse.json(
+        { error: "Message too long" },
+        { status: 400, headers }
+      );
+    }
   }
 
   // Rate limit: max 20 messages per conversation (prevent abuse on public endpoint)
@@ -82,15 +92,23 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ reply }, { headers });
   } catch (gwErr) {
     console.warn("[chat:public] Gateway unavailable:", (gwErr as Error).message);
+
     try {
       const reply = await callAnthropicDirect(messages);
       return NextResponse.json({ reply }, { headers });
-    } catch (sdkErr) {
-      console.error("[chat:public] All backends failed:", sdkErr);
-      return NextResponse.json(
-        { reply: "I'm having a moment. Try messaging me on Telegram @TeddyLogicBot — I'm always online there." },
-        { status: 200, headers }
-      );
+    } catch (anthropicErr) {
+      console.warn("[chat:public] Anthropic unavailable:", (anthropicErr as Error).message);
+
+      try {
+        const reply = await callGeminiDirect(messages);
+        return NextResponse.json({ reply }, { headers });
+      } catch (geminiErr) {
+        console.error("[chat:public] All backends failed:", geminiErr);
+        return NextResponse.json(
+          { reply: "I'm having a moment. Try messaging me on Telegram @TeddyLogicBot — I'm always online there." },
+          { status: 200, headers }
+        );
+      }
     }
   }
 }
@@ -113,7 +131,7 @@ async function callGateway(
       messages: [{ role: "system", content: SYSTEM_PROMPT }, ...messages],
       max_tokens: 300,
     }),
-    signal: AbortSignal.timeout(30000),
+    signal: AbortSignal.timeout(15000),
   });
 
   if (!res.ok) {
@@ -155,4 +173,82 @@ async function callAnthropicDirect(
 
   const textBlock = response.content.find((b) => b.type === "text");
   return textBlock?.text || "Sorry, I couldn't generate a response.";
+}
+
+// =============================================================================
+// Gemini REST fallback (production-safe when Anthropic / gateway are unavailable)
+// =============================================================================
+
+async function callGeminiDirect(
+  messages: { role: string; content: string }[]
+): Promise<string> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error("No GEMINI_API_KEY configured");
+
+  const model = process.env.GEMINI_CHAT_MODEL || "gemini-2.5-flash";
+  if (!/^[\w.-]+$/.test(model)) {
+    throw new Error("Invalid GEMINI_CHAT_MODEL");
+  }
+
+  const geminiContents = messages
+    .filter((m) => m.role === "user" || m.role === "assistant")
+    .map((m) => ({
+      role: m.role === "assistant" ? "model" : "user",
+      parts: [{ text: m.content }],
+    }));
+
+  if (geminiContents.length === 0 || geminiContents[0]?.role !== "user") {
+    throw new Error("Cannot form valid Gemini turn sequence");
+  }
+
+  const mergedContents = geminiContents.reduce<Array<{ role: "user" | "model"; parts: { text: string }[] }>>(
+    (acc, current) => {
+      const prev = acc[acc.length - 1];
+      if (prev && prev.role === current.role) {
+        prev.parts.push(...current.parts);
+      } else {
+        acc.push({ ...current, parts: [...current.parts] });
+      }
+      return acc;
+    },
+    []
+  );
+
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": apiKey,
+      },
+      body: JSON.stringify({
+        systemInstruction: {
+          parts: [{ text: SYSTEM_PROMPT }],
+        },
+        contents: mergedContents,
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 300,
+        },
+      }),
+      signal: AbortSignal.timeout(20000),
+    }
+  );
+
+  if (!res.ok) {
+    throw new Error(`Gemini ${res.status}: ${await res.text()}`);
+  }
+
+  const data = await res.json();
+  const text = data?.candidates?.[0]?.content?.parts
+    ?.map((part: { text?: string }) => part.text || "")
+    .join("")
+    .trim();
+
+  if (!text) {
+    throw new Error("Empty response from Gemini");
+  }
+
+  return text;
 }
