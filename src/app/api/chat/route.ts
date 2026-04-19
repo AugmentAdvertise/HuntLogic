@@ -99,11 +99,14 @@ export async function POST(request: NextRequest) {
     } catch (anthropicErr) {
       console.warn("[chat:public] Anthropic unavailable:", (anthropicErr as Error).message);
 
-      try {
-        const reply = await callGeminiDirect(messages);
-        return NextResponse.json({ reply }, { headers });
       } catch (geminiErr) {
-        console.error("[chat:public] All backends failed:", geminiErr);
+        console.warn("[chat:public] Gemini unavailable:", (geminiErr as Error).message);
+
+        try {
+          const reply = await callOpenAIDirect(messages);
+          return NextResponse.json({ reply }, { headers });
+        } catch (openaiErr) {
+          console.error("[chat:public] All backends failed:", openaiErr);
         return NextResponse.json(
           { reply: "I'm having a moment. Try messaging me on Telegram @TeddyLogicBot — I'm always online there." },
           { status: 200, headers }
@@ -176,7 +179,32 @@ async function callAnthropicDirect(
 }
 
 // =============================================================================
-// Gemini REST fallback (production-safe when Anthropic / gateway are unavailable)
+// OpenAI / Codex fallback
+// =============================================================================
+
+async function callOpenAIDirect(
+  messages: { role: string; content: string }[]
+): Promise<string> {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) throw new Error("No OPENAI_API_KEY configured");
+
+  const { OpenAI } = await import("openai");
+  const client = new OpenAI({ apiKey });
+
+  const completion = await client.chat.completions.create({
+    model: process.env.OPENAI_MODEL || "gpt-5.4",
+    messages: [{ role: "system", content: SYSTEM_PROMPT }, ...messages],
+    max_tokens: 300,
+    temperature: 0.7,
+  });
+
+  const text = completion.choices[0]?.message?.content || "";
+  if (!text) throw new Error("Empty response from OpenAI");
+
+  return text;
+}
+
+// Gemini REST fallback
 // =============================================================================
 
 async function callGeminiDirect(

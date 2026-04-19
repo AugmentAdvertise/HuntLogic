@@ -85,11 +85,17 @@ export async function POST(request: NextRequest) {
         anthropicErr instanceof Error ? anthropicErr.message : String(anthropicErr)
       );
 
-      try {
-        const reply = await callGeminiDirect(fullMessage);
-        return NextResponse.json({ text: reply });
       } catch (geminiErr) {
-        console.error("[chat] All backends failed:", geminiErr);
+        console.warn(
+          "[chat] Gemini unavailable, trying OpenAI:",
+          geminiErr instanceof Error ? geminiErr.message : String(geminiErr)
+        );
+
+        try {
+          const reply = await callOpenAIDirect(fullMessage);
+          return NextResponse.json({ text: reply });
+        } catch (openaiErr) {
+          console.error("[chat] All backends failed:", openaiErr);
         return NextResponse.json(
           { error: `${config.app.aiAssistantName} is currently unavailable. Try messaging him on Telegram: ${config.app.telegramBot}` },
           { status: 503 }
@@ -315,6 +321,33 @@ async function callAnthropicDirect(message: string): Promise<string> {
 
   const textBlock = response.content.find((b) => b.type === "text");
   return textBlock?.text || "Sorry, I couldn't generate a response.";
+}
+
+async function callOpenAIDirect(message: string): Promise<string> {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    throw new Error("No OPENAI_API_KEY configured");
+  }
+
+  const { OpenAI } = await import("openai");
+  const client = new OpenAI({ apiKey });
+
+  const completion = await client.chat.completions.create({
+    model: process.env.OPENAI_MODEL || "gpt-5.4",
+    messages: [
+      { role: "system", content: `You are ${config.app.aiAssistantName}, the AI concierge for ${config.app.brandName} — a national hunting guide powered by real state agency data. You are knowledgeable, direct, and friendly — like a seasoned outfitter who genuinely wants hunters to fill their tags. Use specific numbers when available. When uncertain, say so clearly.` },
+      { role: "user", content: message },
+    ],
+    max_tokens: 4096,
+    temperature: 0.7,
+  });
+
+  const text = completion.choices[0]?.message?.content || "";
+  if (!text) {
+    throw new Error("Empty response from OpenAI");
+  }
+
+  return text;
 }
 
 async function callGeminiDirect(message: string): Promise<string> {
