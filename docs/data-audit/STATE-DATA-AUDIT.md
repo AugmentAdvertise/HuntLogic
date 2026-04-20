@@ -292,9 +292,11 @@ Draw stats tool is JavaScript-rendered (needs headless browser). PDF infographic
 
 ### Data Sources
 - Draw stats: Excel (.xlsx) @ ndow.org (annual hunt data file — best machine-readable source!)
-- Bonus point data: PDF only @ ndow.org/blog/bonus-point-data/
+- Hunt statistics library: https://www.ndow.org/blog/hunt-statistics/ (species PDFs, harvest comps, antler/horn length tables, bighorn and goat summaries)
+- Bonus point data: PDF only @ https://www.ndow.org/blog/bonus-point-data/
 - Historical: 2022-2025 on main pages; pre-2022 in NDOW library
 - GIS/Units: Yes — ArcGIS Open Data @ gis-ndow.opendata.arcgis.com + Data Hub
+- Interactive map reference: https://experience.arcgis.com/experience/83e23630dfb64d84952b983924e5a2f7/page/Map
 
 ### NR Info
 - Quota: ~10% of tags per hunt code (Commission Policy 24)
