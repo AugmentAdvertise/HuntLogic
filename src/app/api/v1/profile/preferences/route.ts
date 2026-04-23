@@ -6,11 +6,23 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import {
   getPreferences,
-  setPreferences,
+  replacePreferences,
   getProfileCompleteness,
   inferPreferences,
 } from "@/services/profile";
 import type { PreferenceInput, PreferenceCategory } from "@/services/profile";
+
+const EDITABLE_PROFILE_CATEGORIES: PreferenceCategory[] = [
+  "species_interest",
+  "state_interest",
+  "hunt_orientation",
+  "timeline",
+  "budget",
+  "travel",
+  "hunt_style",
+  "weapon",
+  "physical",
+];
 
 // =============================================================================
 // GET /api/v1/profile/preferences — List all preferences
@@ -87,22 +99,6 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Validate each preference
-    const validCategories = new Set([
-      "species_interest",
-      "state_interest",
-      "hunt_orientation",
-      "timeline",
-      "budget",
-      "travel",
-      "hunt_style",
-      "weapon",
-      "physical",
-      "location",
-      "experience",
-      "land_access",
-    ]);
-
     const preferences: PreferenceInput[] = [];
 
     for (const pref of body.preferences) {
@@ -118,11 +114,15 @@ export async function PUT(request: NextRequest) {
         );
       }
 
-      if (!validCategories.has(pref.category)) {
+      if (
+        !EDITABLE_PROFILE_CATEGORIES.includes(
+          pref.category as PreferenceCategory,
+        )
+      ) {
         return NextResponse.json(
           {
             error: "Bad Request",
-            message: `Invalid category: ${pref.category}. Valid: ${[...validCategories].join(", ")}`,
+            message: `Invalid category: ${pref.category}. Valid: ${EDITABLE_PROFILE_CATEGORIES.join(", ")}`,
           },
           { status: 400 },
         );
@@ -132,12 +132,12 @@ export async function PUT(request: NextRequest) {
         category: pref.category as PreferenceCategory,
         key: pref.key,
         value: pref.value,
-        confidence: pref.confidence ?? 1.0,
-        source: pref.source ?? "user",
+        confidence: 1.0,
+        source: "user",
       });
     }
 
-    await setPreferences(userId, preferences);
+    await replacePreferences(userId, preferences, EDITABLE_PROFILE_CATEGORIES);
 
     // Trigger inference after preferences update
     await inferPreferences(userId);

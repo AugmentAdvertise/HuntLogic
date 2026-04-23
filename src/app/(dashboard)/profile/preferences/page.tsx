@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { Check, Award } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { apiClient } from "@/lib/api/client";
 
 interface SpeciesOption {
@@ -21,6 +22,12 @@ interface PreferenceItem {
   key: string;
   value: unknown;
   source: string;
+}
+
+interface PreferenceSaveInput {
+  category: string;
+  key: string;
+  value: unknown;
 }
 
 interface PreferencesResponse {
@@ -109,7 +116,9 @@ export default function PreferencesPage() {
       if (prefsRes.error) {
         failedLoads += 1;
       } else {
-        setPrefs(prefsRes.data?.data ?? []);
+        setPrefs(
+          (prefsRes.data?.data ?? []).filter((p) => p.source === "user"),
+        );
       }
 
       if (speciesRes.error) {
@@ -183,14 +192,23 @@ export default function PreferencesPage() {
     setSaveError(null);
 
     try {
+      const preferencesToSave: PreferenceSaveInput[] = prefs.map((pref) => ({
+        category: pref.category,
+        key: pref.key,
+        value: pref.value,
+      }));
+
       const response = await apiClient.put("/profile/preferences", {
-        preferences: prefs,
+        preferences: preferencesToSave,
       });
 
       if (response.error) {
         throw new Error(response.error);
       }
 
+      setPrefs(
+        (response.data?.data ?? prefs).filter((p) => p.source === "user"),
+      );
       setDirty(false);
     } catch (err) {
       console.error("[preferences] Save failed:", err);
@@ -230,16 +248,7 @@ export default function PreferencesPage() {
             that drive your playbook and recommendations.
           </p>
         </div>
-        {dirty && (
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="flex items-center gap-2 rounded-[8px] bg-gradient-cta px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md disabled:opacity-50"
-          >
-            <Check className="h-4 w-4" />
-            {saving ? "Saving..." : "Save Changes"}
-          </button>
-        )}
+        {dirty && <SaveButton onClick={handleSave} saving={saving} />}
       </div>
 
       {loadError && (
@@ -413,7 +422,41 @@ export default function PreferencesPage() {
           onChange={(v) => setSingleSelect("physical", "physical_ability", v)}
         />
       </Section>
+
+      {dirty && (
+        <div className="sticky bottom-4 z-10 flex justify-end">
+          <SaveButton
+            onClick={handleSave}
+            saving={saving}
+            className="shadow-lg"
+          />
+        </div>
+      )}
     </div>
+  );
+}
+
+function SaveButton({
+  onClick,
+  saving,
+  className,
+}: {
+  onClick: () => void;
+  saving: boolean;
+  className?: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={saving}
+      className={cn(
+        "flex items-center gap-2 rounded-[8px] bg-gradient-cta px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md disabled:opacity-50",
+        className,
+      )}
+    >
+      <Check className="h-4 w-4" />
+      {saving ? "Saving..." : "Save Changes"}
+    </button>
   );
 }
 

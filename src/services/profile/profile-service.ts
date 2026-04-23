@@ -2,7 +2,7 @@
 // Profile Service — Core CRUD for Hunter Profiles
 // =============================================================================
 
-import { eq } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   users,
@@ -55,36 +55,86 @@ interface InferenceRule {
 
 const INFERENCE_RULES: InferenceRule[] = [
   {
-    description: "Trophy elk hunters need moderate+ terrain tolerance and medium+ budget",
+    description:
+      "Trophy elk hunters need moderate+ terrain tolerance and medium+ budget",
     conditions: [
       { category: "species_interest", key: "elk" },
-      { category: "hunt_orientation", key: "orientation", matchValue: "trophy" },
+      {
+        category: "hunt_orientation",
+        key: "orientation",
+        matchValue: "trophy",
+      },
     ],
     inferences: [
-      { category: "physical", key: "terrain_tolerance", value: "moderate", confidence: 0.7, source: "inferred" },
-      { category: "budget", key: "budget_minimum", value: "3000", confidence: 0.65, source: "inferred" },
-      { category: "timeline", key: "willing_to_wait", value: true, confidence: 0.75, source: "inferred" },
+      {
+        category: "physical",
+        key: "terrain_tolerance",
+        value: "moderate",
+        confidence: 0.7,
+        source: "inferred",
+      },
+      {
+        category: "budget",
+        key: "budget_minimum",
+        value: "3000",
+        confidence: 0.65,
+        source: "inferred",
+      },
+      {
+        category: "timeline",
+        key: "willing_to_wait",
+        value: true,
+        confidence: 0.75,
+        source: "inferred",
+      },
     ],
   },
   {
-    description: "Trophy mule deer hunters likely willing to wait and need moderate budget",
+    description:
+      "Trophy mule deer hunters likely willing to wait and need moderate budget",
     conditions: [
       { category: "species_interest", key: "mule_deer" },
-      { category: "hunt_orientation", key: "orientation", matchValue: "trophy" },
+      {
+        category: "hunt_orientation",
+        key: "orientation",
+        matchValue: "trophy",
+      },
     ],
     inferences: [
-      { category: "timeline", key: "willing_to_wait", value: true, confidence: 0.8, source: "inferred" },
-      { category: "budget", key: "budget_minimum", value: "3000", confidence: 0.6, source: "inferred" },
+      {
+        category: "timeline",
+        key: "willing_to_wait",
+        value: true,
+        confidence: 0.8,
+        source: "inferred",
+      },
+      {
+        category: "budget",
+        key: "budget_minimum",
+        value: "3000",
+        confidence: 0.6,
+        source: "inferred",
+      },
     ],
   },
   {
     description: "Whitetail in eastern states suggests DIY and private land",
-    conditions: [
-      { category: "species_interest", key: "whitetail" },
-    ],
+    conditions: [{ category: "species_interest", key: "whitetail" }],
     inferences: [
-      { category: "hunt_style", key: "diy_preference", value: true, confidence: 0.6, source: "inferred" },
-      { category: "land_access", key: "private_land_likely", value: true, confidence: 0.55, source: "inferred" },
+      {
+        category: "hunt_style",
+        key: "diy_preference",
+        value: true,
+        confidence: 0.6,
+        source: "inferred",
+      },
+      {
+        category: "land_access",
+        key: "private_land_likely",
+        value: true,
+        confidence: 0.55,
+        source: "inferred",
+      },
     ],
   },
   {
@@ -93,8 +143,20 @@ const INFERENCE_RULES: InferenceRule[] = [
       { category: "timeline", key: "timeline", matchValue: "this_year" },
     ],
     inferences: [
-      { category: "hunt_style", key: "prioritize_otc", value: true, confidence: 0.8, source: "inferred" },
-      { category: "hunt_style", key: "prioritize_high_odds", value: true, confidence: 0.75, source: "inferred" },
+      {
+        category: "hunt_style",
+        key: "prioritize_otc",
+        value: true,
+        confidence: 0.8,
+        source: "inferred",
+      },
+      {
+        category: "hunt_style",
+        key: "prioritize_high_odds",
+        value: true,
+        confidence: 0.75,
+        source: "inferred",
+      },
     ],
   },
   {
@@ -103,9 +165,27 @@ const INFERENCE_RULES: InferenceRule[] = [
       { category: "budget", key: "annual_budget", matchValue: "under_1000" },
     ],
     inferences: [
-      { category: "hunt_style", key: "prioritize_otc", value: true, confidence: 0.85, source: "inferred" },
-      { category: "hunt_style", key: "diy_preference", value: true, confidence: 0.7, source: "inferred" },
-      { category: "travel", key: "prefer_nearby", value: true, confidence: 0.65, source: "inferred" },
+      {
+        category: "hunt_style",
+        key: "prioritize_otc",
+        value: true,
+        confidence: 0.85,
+        source: "inferred",
+      },
+      {
+        category: "hunt_style",
+        key: "diy_preference",
+        value: true,
+        confidence: 0.7,
+        source: "inferred",
+      },
+      {
+        category: "travel",
+        key: "prefer_nearby",
+        value: true,
+        confidence: 0.65,
+        source: "inferred",
+      },
     ],
   },
   {
@@ -114,8 +194,20 @@ const INFERENCE_RULES: InferenceRule[] = [
       { category: "budget", key: "annual_budget", matchValue: "over_10000" },
     ],
     inferences: [
-      { category: "hunt_style", key: "guided_interest", value: true, confidence: 0.6, source: "inferred" },
-      { category: "travel", key: "fly_willing", value: true, confidence: 0.65, source: "inferred" },
+      {
+        category: "hunt_style",
+        key: "guided_interest",
+        value: true,
+        confidence: 0.6,
+        source: "inferred",
+      },
+      {
+        category: "travel",
+        key: "fly_willing",
+        value: true,
+        confidence: 0.65,
+        source: "inferred",
+      },
     ],
   },
   {
@@ -125,7 +217,13 @@ const INFERENCE_RULES: InferenceRule[] = [
       { category: "weapon", key: "weapon", matchAny: ["archery"] },
     ],
     inferences: [
-      { category: "hunt_style", key: "diy_preference", value: true, confidence: 0.6, source: "inferred" },
+      {
+        category: "hunt_style",
+        key: "diy_preference",
+        value: true,
+        confidence: 0.6,
+        source: "inferred",
+      },
     ],
   },
   {
@@ -134,7 +232,13 @@ const INFERENCE_RULES: InferenceRule[] = [
       { category: "travel", key: "travel_tolerance", matchValue: "fly" },
     ],
     inferences: [
-      { category: "travel", key: "national_scope", value: true, confidence: 0.8, source: "inferred" },
+      {
+        category: "travel",
+        key: "national_scope",
+        value: true,
+        confidence: 0.8,
+        source: "inferred",
+      },
     ],
   },
   {
@@ -143,7 +247,13 @@ const INFERENCE_RULES: InferenceRule[] = [
       { category: "physical", key: "physical_ability", matchValue: "high" },
     ],
     inferences: [
-      { category: "hunt_style", key: "backcountry_ok", value: true, confidence: 0.85, source: "inferred" },
+      {
+        category: "hunt_style",
+        key: "backcountry_ok",
+        value: true,
+        confidence: 0.85,
+        source: "inferred",
+      },
     ],
   },
   {
@@ -152,19 +262,50 @@ const INFERENCE_RULES: InferenceRule[] = [
       { category: "physical", key: "physical_ability", matchValue: "limited" },
     ],
     inferences: [
-      { category: "hunt_style", key: "road_accessible_preferred", value: true, confidence: 0.8, source: "inferred" },
-      { category: "hunt_style", key: "guided_interest", value: true, confidence: 0.5, source: "inferred" },
+      {
+        category: "hunt_style",
+        key: "road_accessible_preferred",
+        value: true,
+        confidence: 0.8,
+        source: "inferred",
+      },
+      {
+        category: "hunt_style",
+        key: "guided_interest",
+        value: true,
+        confidence: 0.5,
+        source: "inferred",
+      },
     ],
   },
   {
-    description: "Meat-focused orientation suggests opportunity-focused approach",
+    description:
+      "Meat-focused orientation suggests opportunity-focused approach",
     conditions: [
       { category: "hunt_orientation", key: "orientation", matchValue: "meat" },
     ],
     inferences: [
-      { category: "hunt_style", key: "prioritize_otc", value: true, confidence: 0.7, source: "inferred" },
-      { category: "hunt_style", key: "prioritize_high_odds", value: true, confidence: 0.8, source: "inferred" },
-      { category: "timeline", key: "willing_to_wait", value: false, confidence: 0.6, source: "inferred" },
+      {
+        category: "hunt_style",
+        key: "prioritize_otc",
+        value: true,
+        confidence: 0.7,
+        source: "inferred",
+      },
+      {
+        category: "hunt_style",
+        key: "prioritize_high_odds",
+        value: true,
+        confidence: 0.8,
+        source: "inferred",
+      },
+      {
+        category: "timeline",
+        key: "willing_to_wait",
+        value: false,
+        confidence: 0.6,
+        source: "inferred",
+      },
     ],
   },
   {
@@ -173,8 +314,20 @@ const INFERENCE_RULES: InferenceRule[] = [
       { category: "timeline", key: "timeline", matchValue: "long_term" },
     ],
     inferences: [
-      { category: "timeline", key: "willing_to_wait", value: true, confidence: 0.9, source: "inferred" },
-      { category: "experience", key: "point_building_interest", value: true, confidence: 0.85, source: "inferred" },
+      {
+        category: "timeline",
+        key: "willing_to_wait",
+        value: true,
+        confidence: 0.9,
+        source: "inferred",
+      },
+      {
+        category: "experience",
+        key: "point_building_interest",
+        value: true,
+        confidence: 0.85,
+        source: "inferred",
+      },
     ],
   },
 ];
@@ -221,7 +374,7 @@ export async function getProfile(userId: string): Promise<HunterProfile> {
 
 export async function updateProfile(
   userId: string,
-  data: Partial<ProfileUpdate>
+  data: Partial<ProfileUpdate>,
 ): Promise<HunterProfile> {
   console.log(`${LOG_PREFIX} updateProfile: ${userId}`, Object.keys(data));
 
@@ -233,13 +386,12 @@ export async function updateProfile(
   if (data.phone !== undefined) updateData.phone = data.phone;
   if (data.avatarUrl !== undefined) updateData.avatarUrl = data.avatarUrl;
   if (data.timezone !== undefined) updateData.timezone = data.timezone;
-  if (data.onboardingStep !== undefined) updateData.onboardingStep = data.onboardingStep;
-  if (data.onboardingComplete !== undefined) updateData.onboardingComplete = data.onboardingComplete;
+  if (data.onboardingStep !== undefined)
+    updateData.onboardingStep = data.onboardingStep;
+  if (data.onboardingComplete !== undefined)
+    updateData.onboardingComplete = data.onboardingComplete;
 
-  await db
-    .update(users)
-    .set(updateData)
-    .where(eq(users.id, userId));
+  await db.update(users).set(updateData).where(eq(users.id, userId));
 
   return getProfile(userId);
 }
@@ -248,7 +400,9 @@ export async function updateProfile(
 // getPreferences
 // =============================================================================
 
-export async function getPreferences(userId: string): Promise<HunterPreference[]> {
+export async function getPreferences(
+  userId: string,
+): Promise<HunterPreference[]> {
   const rows = await db
     .select()
     .from(hunterPreferences)
@@ -276,7 +430,7 @@ export async function setPreference(
   category: string,
   key: string,
   value: unknown,
-  source: "user" | "inferred" | "behavioral" = "user"
+  source: "user" | "inferred" | "behavioral" = "user",
 ): Promise<void> {
   console.log(`${LOG_PREFIX} setPreference: ${userId} ${category}/${key}`);
 
@@ -294,7 +448,11 @@ export async function setPreference(
       updatedAt: now,
     })
     .onConflictDoUpdate({
-      target: [hunterPreferences.userId, hunterPreferences.category, hunterPreferences.key],
+      target: [
+        hunterPreferences.userId,
+        hunterPreferences.category,
+        hunterPreferences.key,
+      ],
       set: {
         value,
         confidence: source === "user" ? 1.0 : 0.7,
@@ -310,9 +468,11 @@ export async function setPreference(
 
 export async function setPreferences(
   userId: string,
-  preferences: PreferenceInput[]
+  preferences: PreferenceInput[],
 ): Promise<void> {
-  console.log(`${LOG_PREFIX} setPreferences: ${userId} (${preferences.length} prefs)`);
+  console.log(
+    `${LOG_PREFIX} setPreferences: ${userId} (${preferences.length} prefs)`,
+  );
 
   if (preferences.length === 0) return;
 
@@ -332,10 +492,15 @@ export async function setPreferences(
         updatedAt: now,
       })
       .onConflictDoUpdate({
-        target: [hunterPreferences.userId, hunterPreferences.category, hunterPreferences.key],
+        target: [
+          hunterPreferences.userId,
+          hunterPreferences.category,
+          hunterPreferences.key,
+        ],
         set: {
           value: pref.value,
-          confidence: pref.confidence ?? (pref.source === "inferred" ? 0.7 : 1.0),
+          confidence:
+            pref.confidence ?? (pref.source === "inferred" ? 0.7 : 1.0),
           source: pref.source ?? "user",
           updatedAt: now,
         },
@@ -349,13 +514,17 @@ export async function setPreferences(
     (p) =>
       p.category === "experience" &&
       p.key.startsWith("points_") &&
-      typeof (p.value as Record<string, unknown>)?.points === "number"
+      typeof (p.value as Record<string, unknown>)?.points === "number",
   );
 
   if (pointPrefs.length > 0) {
     // Load state and species id maps
-    const allStates = await db.select({ id: states.id, code: states.code }).from(states);
-    const allSpecies = await db.select({ id: species.id, slug: species.slug }).from(species);
+    const allStates = await db
+      .select({ id: states.id, code: states.code })
+      .from(states);
+    const allSpecies = await db
+      .select({ id: species.id, slug: species.slug })
+      .from(species);
     const stateByCode = new Map(allStates.map((s) => [s.code, s.id]));
     const speciesById = new Map(allSpecies.map((s) => [s.slug, s.id]));
 
@@ -396,16 +565,75 @@ export async function setPreferences(
     }
 
     console.log(
-      `${LOG_PREFIX} setPreferences: synced ${pointPrefs.length} point pref(s) → point_holdings`
+      `${LOG_PREFIX} setPreferences: synced ${pointPrefs.length} point pref(s) → point_holdings`,
     );
   }
+}
+
+export async function replacePreferences(
+  userId: string,
+  preferences: PreferenceInput[],
+  replaceCategories: PreferenceCategory[],
+): Promise<void> {
+  console.log(
+    `${LOG_PREFIX} replacePreferences: ${userId} (${preferences.length} prefs, ${replaceCategories.length} categories)`,
+  );
+
+  if (replaceCategories.length === 0) return;
+
+  await db.transaction(async (tx) => {
+    await tx
+      .delete(hunterPreferences)
+      .where(
+        and(
+          eq(hunterPreferences.userId, userId),
+          inArray(hunterPreferences.category, replaceCategories),
+        ),
+      );
+
+    if (preferences.length === 0) return;
+
+    const now = new Date();
+
+    for (const pref of preferences) {
+      await tx
+        .insert(hunterPreferences)
+        .values({
+          userId,
+          category: pref.category,
+          key: pref.key,
+          value: pref.value,
+          confidence:
+            pref.confidence ?? (pref.source === "inferred" ? 0.7 : 1.0),
+          source: pref.source ?? "user",
+          createdAt: now,
+          updatedAt: now,
+        })
+        .onConflictDoUpdate({
+          target: [
+            hunterPreferences.userId,
+            hunterPreferences.category,
+            hunterPreferences.key,
+          ],
+          set: {
+            value: pref.value,
+            confidence:
+              pref.confidence ?? (pref.source === "inferred" ? 0.7 : 1.0),
+            source: pref.source ?? "user",
+            updatedAt: now,
+          },
+        });
+    }
+  });
 }
 
 // =============================================================================
 // getPointHoldings
 // =============================================================================
 
-export async function getPointHoldings(userId: string): Promise<PointHolding[]> {
+export async function getPointHoldings(
+  userId: string,
+): Promise<PointHolding[]> {
   const rows = await db
     .select({
       id: pointHoldings.id,
@@ -450,9 +678,11 @@ export async function getPointHoldings(userId: string): Promise<PointHolding[]> 
 
 export async function setPointHoldings(
   userId: string,
-  holdings: PointHoldingInput[]
+  holdings: PointHoldingInput[],
 ): Promise<void> {
-  console.log(`${LOG_PREFIX} setPointHoldings: ${userId} (${holdings.length} holdings)`);
+  console.log(
+    `${LOG_PREFIX} setPointHoldings: ${userId} (${holdings.length} holdings)`,
+  );
 
   if (holdings.length === 0) return;
 
@@ -491,7 +721,9 @@ export async function setPointHoldings(
 // getApplicationHistory
 // =============================================================================
 
-export async function getApplicationHistory(userId: string): Promise<ApplicationRecord[]> {
+export async function getApplicationHistory(
+  userId: string,
+): Promise<ApplicationRecord[]> {
   const rows = await db
     .select({
       id: applicationHistory.id,
@@ -556,9 +788,11 @@ export async function getApplicationHistory(userId: string): Promise<Application
 
 export async function addApplicationRecord(
   userId: string,
-  record: ApplicationRecordInput
+  record: ApplicationRecordInput,
 ): Promise<void> {
-  console.log(`${LOG_PREFIX} addApplicationRecord: ${userId} year=${record.year}`);
+  console.log(
+    `${LOG_PREFIX} addApplicationRecord: ${userId} year=${record.year}`,
+  );
 
   await db.insert(applicationHistory).values({
     userId,
@@ -577,7 +811,9 @@ export async function addApplicationRecord(
 // getHarvestHistory
 // =============================================================================
 
-export async function getHarvestHistory(userId: string): Promise<HarvestRecord[]> {
+export async function getHarvestHistory(
+  userId: string,
+): Promise<HarvestRecord[]> {
   const rows = await db
     .select({
       id: harvestHistory.id,
@@ -642,7 +878,7 @@ export async function getHarvestHistory(userId: string): Promise<HarvestRecord[]
 
 export async function addHarvestRecord(
   userId: string,
-  record: HarvestRecordInput
+  record: HarvestRecordInput,
 ): Promise<void> {
   console.log(`${LOG_PREFIX} addHarvestRecord: ${userId} year=${record.year}`);
 
@@ -663,7 +899,9 @@ export async function addHarvestRecord(
 // getProfileCompleteness
 // =============================================================================
 
-export async function getProfileCompleteness(userId: string): Promise<ProfileCompleteness> {
+export async function getProfileCompleteness(
+  userId: string,
+): Promise<ProfileCompleteness> {
   const prefs = await getPreferences(userId);
   return calculateCompleteness(prefs);
 }
@@ -672,11 +910,13 @@ export async function getProfileCompleteness(userId: string): Promise<ProfileCom
  * Calculate profile completeness from a list of preferences.
  * Pure function — no DB access.
  */
-function calculateCompleteness(preferences: HunterPreference[]): ProfileCompleteness {
+function calculateCompleteness(
+  preferences: HunterPreference[],
+): ProfileCompleteness {
   const filledCategories = new Set(
     preferences
       .filter((p) => p.source === "user" || p.confidence >= 0.8)
-      .map((p) => p.category)
+      .map((p) => p.category),
   );
 
   const breakdown: CategoryCompleteness[] = [];
@@ -706,9 +946,8 @@ function calculateCompleteness(preferences: HunterPreference[]): ProfileComplete
     }
   }
 
-  const score = totalPossible > 0
-    ? Math.round((totalEarned / totalPossible) * 100)
-    : 0;
+  const score =
+    totalPossible > 0 ? Math.round((totalEarned / totalPossible) * 100) : 0;
 
   return {
     score,
@@ -746,7 +985,9 @@ export async function inferPreferences(userId: string): Promise<void> {
       }
       if (condition.matchAny !== undefined) {
         if (Array.isArray(pref.value)) {
-          return condition.matchAny.some((v) => (pref.value as unknown[]).includes(v));
+          return condition.matchAny.some((v) =>
+            (pref.value as unknown[]).includes(v),
+          );
         }
         return condition.matchAny.includes(pref.value);
       }
@@ -779,10 +1020,12 @@ export async function inferPreferences(userId: string): Promise<void> {
 
   if (newInferences.length > 0) {
     console.log(
-      `${LOG_PREFIX} inferPreferences: adding ${newInferences.length} inferences for ${userId}`
+      `${LOG_PREFIX} inferPreferences: adding ${newInferences.length} inferences for ${userId}`,
     );
     await setPreferences(userId, newInferences);
   } else {
-    console.log(`${LOG_PREFIX} inferPreferences: no new inferences for ${userId}`);
+    console.log(
+      `${LOG_PREFIX} inferPreferences: no new inferences for ${userId}`,
+    );
   }
 }

@@ -8,6 +8,7 @@ export {
   getPreferences,
   setPreference,
   setPreferences,
+  replacePreferences,
   getPointHoldings,
   setPointHoldings,
   getApplicationHistory,
